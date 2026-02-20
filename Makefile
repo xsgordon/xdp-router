@@ -57,9 +57,44 @@ XDP_SKEL := $(BUILD_DIR)/xdp_router.skel.h
 DAEMON := $(BUILD_DIR)/xdp-routerd
 CLI := $(BUILD_DIR)/xdp-router-cli
 
-.PHONY: all clean install test help
+.PHONY: all clean install test help check-deps
 
 all: $(XDP_PROG) $(XDP_SKEL) $(DAEMON) $(CLI)
+
+# Check for required build dependencies
+check-deps:
+	@echo "Checking build dependencies..."
+	@command -v $(CLANG) >/dev/null 2>&1 || \
+		{ echo "ERROR: clang not found"; \
+		  echo "  Fedora/RHEL: sudo dnf install clang llvm"; \
+		  echo "  Ubuntu/Debian: sudo apt install clang llvm"; \
+		  exit 1; }
+	@command -v $(BPFTOOL) >/dev/null 2>&1 || \
+		{ echo "ERROR: bpftool not found"; \
+		  echo "  Fedora/RHEL: sudo dnf install bpftool"; \
+		  echo "  Ubuntu/Debian: sudo apt install linux-tools-common linux-tools-generic"; \
+		  exit 1; }
+	@command -v $(CC) >/dev/null 2>&1 || \
+		{ echo "ERROR: gcc not found"; \
+		  echo "  Fedora/RHEL: sudo dnf install gcc"; \
+		  echo "  Ubuntu/Debian: sudo apt install gcc"; \
+		  exit 1; }
+	@pkg-config --exists libbpf 2>/dev/null || \
+		{ echo "ERROR: libbpf development files not found"; \
+		  echo "  Fedora/RHEL: sudo dnf install libbpf-devel"; \
+		  echo "  Ubuntu/Debian: sudo apt install libbpf-dev"; \
+		  exit 1; }
+	@pkg-config --exists libnl-3.0 2>/dev/null || \
+		{ echo "ERROR: libnl-3 development files not found"; \
+		  echo "  Fedora/RHEL: sudo dnf install libnl3-devel"; \
+		  echo "  Ubuntu/Debian: sudo apt install libnl-3-dev libnl-route-3-dev"; \
+		  exit 1; }
+	@pkg-config --exists libelf 2>/dev/null || \
+		{ echo "ERROR: libelf development files not found"; \
+		  echo "  Fedora/RHEL: sudo dnf install elfutils-libelf-devel"; \
+		  echo "  Ubuntu/Debian: sudo apt install libelf-dev"; \
+		  exit 1; }
+	@echo "✓ All dependencies satisfied"
 
 # Create build directories
 $(BUILD_DIR) $(XDP_BUILD) $(CONTROL_BUILD) $(CLI_BUILD):
@@ -162,6 +197,7 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  all              - Build all components (default)"
+	@echo "  check-deps       - Verify build dependencies are installed"
 	@echo "  clean            - Remove build artifacts"
 	@echo "  install          - Install to system"
 	@echo "  uninstall        - Remove from system"
@@ -177,6 +213,7 @@ help:
 	@echo "  FEATURES=\"-DFEATURE_IPV4 -DFEATURE_IPV6 -DFEATURE_SRV6\""
 	@echo ""
 	@echo "Examples:"
+	@echo "  make check-deps         # Verify dependencies before building"
 	@echo "  make                    # Build everything"
 	@echo "  make FEATURES=\"-DFEATURE_IPV4\"  # Build IPv4 only"
 	@echo "  make clean install      # Clean build and install"
