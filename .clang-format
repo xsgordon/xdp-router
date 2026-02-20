@@ -1,0 +1,35 @@
+# clang-format configuration for xdp-router
+# Based on Linux kernel style for BPF programs
+
+BasedOnStyle: LLVM
+IndentWidth: 8
+UseTab: ForIndentation
+TabWidth: 8
+BreakBeforeBraces: Linux
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+IndentCaseLabels: false
+ColumnLimit: 100
+AlignConsecutiveMacros: Consecutive
+AlignConsecutiveAssignments: None
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # vmlinux.h or kernel headers first
+  - Regex:           '^[<"](vmlinux|linux/)'
+    Priority:        1
+  # BPF headers
+  - Regex:           '^<bpf/'
+    Priority:        2
+  # Project common headers
+  - Regex:           '^"common/'
+    Priority:        3
+  # Other project headers
+  - Regex:           '^"'
+    Priority:        4
+  # Standard C library
+  - Regex:           '^<'
+    Priority:        5
