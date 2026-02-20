@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2024 */
+/* Copyright (c) 2026 */
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>

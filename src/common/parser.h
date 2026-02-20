@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2024 */
+/* Copyright (c) 2026 */
 
 #ifndef __XDP_ROUTER_PARSER_H
 #define __XDP_ROUTER_PARSER_H
