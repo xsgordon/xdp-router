@@ -25,9 +25,12 @@ CLI_BUILD := $(BUILD_DIR)/cli
 # Compiler flags
 CFLAGS := -O2 -g -Wall -Wextra -MMD -MP
 BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_$(ARCH)
+BPF_CFLAGS += -D__BPF_TRACING__
 BPF_CFLAGS += -Wall -Wno-unused-value -Wno-pointer-sign
 BPF_CFLAGS += -Wno-compare-distinct-pointer-types
+BPF_CFLAGS += -Wno-address-of-packed-member
 BPF_CFLAGS += -I$(COMMON_DIR) -I$(LIB_DIR) -I$(BUILD_DIR)
+BPF_CFLAGS += -I/usr/include/bpf
 
 # User-space flags
 USER_CFLAGS := $(CFLAGS) -I$(COMMON_DIR) -I$(LIB_DIR)
