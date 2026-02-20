@@ -23,7 +23,7 @@ CONTROL_BUILD := $(BUILD_DIR)/control
 CLI_BUILD := $(BUILD_DIR)/cli
 
 # Compiler flags
-CFLAGS := -O2 -g -Wall -Wextra
+CFLAGS := -O2 -g -Wall -Wextra -MMD -MP
 BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_$(ARCH)
 BPF_CFLAGS += -Wall -Wno-unused-value -Wno-pointer-sign
 BPF_CFLAGS += -Wno-compare-distinct-pointer-types
@@ -32,6 +32,14 @@ BPF_CFLAGS += -I$(COMMON_DIR) -I$(LIB_DIR) -I$(BUILD_DIR)
 # User-space flags
 USER_CFLAGS := $(CFLAGS) -I$(COMMON_DIR) -I$(LIB_DIR)
 LDFLAGS := -lbpf -lelf -lnl-3 -lnl-route-3
+
+# Source files discovery
+CONTROL_SOURCES := $(wildcard $(CONTROL_DIR)/*.c $(CONTROL_DIR)/**/*.c)
+CLI_SOURCES := $(wildcard $(CLI_DIR)/*.c $(CLI_DIR)/**/*.c)
+
+# Object files
+CONTROL_OBJECTS := $(CONTROL_SOURCES:$(CONTROL_DIR)/%.c=$(CONTROL_BUILD)/%.o)
+CLI_OBJECTS := $(CLI_SOURCES:$(CLI_DIR)/%.c=$(CLI_BUILD)/%.o)
 
 # Feature flags (can be overridden)
 FEATURES ?= -DFEATURE_IPV4 -DFEATURE_IPV6 -DFEATURE_SRV6
@@ -75,15 +83,26 @@ $(XDP_SKEL): $(XDP_PROG)
 	@echo "  SKEL     $@"
 	@$(BPFTOOL) gen skeleton $< > $@
 
-# Control Plane Daemon
-$(DAEMON): $(CONTROL_DIR)/main.c $(XDP_SKEL) | $(CONTROL_BUILD)
+# Pattern rule for compiling user-space C files
+$(CONTROL_BUILD)/%.o: $(CONTROL_DIR)/%.c $(XDP_SKEL) | $(CONTROL_BUILD)
+	@mkdir -p $(dir $@)
 	@echo "  CC       $@"
-	@$(CC) $(USER_CFLAGS) $< -o $@ $(LDFLAGS)
+	@$(CC) $(USER_CFLAGS) -c $< -o $@
+
+$(CLI_BUILD)/%.o: $(CLI_DIR)/%.c $(XDP_SKEL) | $(CLI_BUILD)
+	@mkdir -p $(dir $@)
+	@echo "  CC       $@"
+	@$(CC) $(USER_CFLAGS) -c $< -o $@
+
+# Control Plane Daemon
+$(DAEMON): $(CONTROL_OBJECTS)
+	@echo "  LD       $@"
+	@$(CC) $^ $(LDFLAGS) -o $@
 
 # CLI Tool
-$(CLI): $(CLI_DIR)/main.c $(XDP_SKEL) | $(CLI_BUILD)
-	@echo "  CC       $@"
-	@$(CC) $(USER_CFLAGS) $< -o $@ $(LDFLAGS)
+$(CLI): $(CLI_OBJECTS)
+	@echo "  LD       $@"
+	@$(CC) $^ $(LDFLAGS) -o $@
 
 # Clean
 clean:
@@ -156,3 +175,6 @@ help:
 	@echo "  make                    # Build everything"
 	@echo "  make FEATURES=\"-DFEATURE_IPV4\"  # Build IPv4 only"
 	@echo "  make clean install      # Clean build and install"
+
+# Include auto-generated dependencies
+-include $(wildcard $(BUILD_DIR)/**/*.d)
