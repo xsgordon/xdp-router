@@ -1,5 +1,17 @@
 # xdp-router configuration example
 # Copy to /etc/xdp-router/config.yaml and customize
+#
+# ============================================================================
+# NOTE: This is a FUTURE configuration format for xdp-router.
+#
+# Most features described below are NOT YET IMPLEMENTED.
+# The project is currently in early development (Phase 1).
+#
+# See PLAN.md for implementation status and roadmap.
+# See README.md for current project status.
+#
+# This file serves as a design document for the planned configuration API.
+# ============================================================================
 
 # Feature flags
 features:
