@@ -11,6 +11,8 @@
 
 #include <bpf/libbpf.h>
 
+#include "common/common.h"
+
 static volatile sig_atomic_t running = 1;
 
 static void sig_handler(int sig)

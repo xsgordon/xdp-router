@@ -10,6 +10,8 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
+#include "common/common.h"
+
 static void print_usage(const char *prog)
 {
 	printf("Usage: %s <command> [options]\n\n", prog);
