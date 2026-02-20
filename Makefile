@@ -147,12 +147,14 @@ test-performance:
 # Format code
 format:
 	@echo "  FORMAT"
-	@find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-format -i
+	@find $(SRC_DIR) $(LIB_DIR) \( -name '*.c' -o -name '*.h' \) -print0 | \
+		xargs -0 -r clang-format -i
 
 # Lint
 lint:
 	@echo "  LINT"
-	@find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-tidy
+	@find $(SRC_DIR) $(LIB_DIR) \( -name '*.c' -o -name '*.h' \) -print0 | \
+		xargs -0 -r clang-tidy --
 
 # Help
 help:
@@ -180,4 +182,4 @@ help:
 	@echo "  make clean install      # Clean build and install"
 
 # Include auto-generated dependencies
--include $(wildcard $(BUILD_DIR)/**/*.d)
+-include $(shell find $(BUILD_DIR) -name '*.d' 2>/dev/null)
