@@ -5,21 +5,69 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 #include <linux/if_ether.h>
+#include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
 #include "common/common.h"
 #include "common/parser.h"
 
-char LICENSE[] SEC("license") = "GPL";
+/* Include maps and handlers */
+#include "xdp/maps/maps.h"
+#include "xdp/parsers/ethernet.h"
+#include "xdp/handlers/ipv4.h"
+#include "xdp/handlers/ipv6.h"
 
-/* BPF maps - will be populated in Phase 1 */
+char LICENSE[] SEC("license") = "GPL";
 
 /* Main XDP program entry point */
 SEC("xdp")
 int xdp_router_main(struct xdp_md *ctx)
 {
-	/* This is a placeholder that will be implemented in Phase 2 */
-	/* Current behavior: pass all packets to kernel */
-	return XDP_PASS;
+	struct parser_ctx pctx = {};
+	int rc;
+
+	/* Initialize parser context */
+	pctx.data = (void *)(long)ctx->data;
+	pctx.data_end = (void *)(long)ctx->data_end;
+
+	/* Parse Ethernet header */
+	rc = parse_ethernet(&pctx);
+	if (rc < 0) {
+		record_drop(ctx->ingress_ifindex, DROP_PARSE_ERROR);
+		return XDP_DROP;
+	}
+
+	/* Dispatch based on EtherType */
+	switch (pctx.ethertype) {
+	case ETH_P_IP:
+		/* Parse IPv4 header */
+		rc = parse_ipv4(&pctx);
+		if (rc < 0) {
+			record_drop(ctx->ingress_ifindex, DROP_PARSE_ERROR);
+			return XDP_DROP;
+		}
+
+		/* Handle IPv4 forwarding */
+		return handle_ipv4(ctx, &pctx);
+
+	case ETH_P_IPV6:
+		/* Parse IPv6 header */
+		rc = parse_ipv6(&pctx);
+		if (rc < 0) {
+			record_drop(ctx->ingress_ifindex, DROP_PARSE_ERROR);
+			return XDP_DROP;
+		}
+
+		/* Handle IPv6 forwarding */
+		return handle_ipv6(ctx, &pctx);
+
+	case ETH_P_ARP:
+		/* Pass ARP to kernel */
+		return XDP_PASS;
+
+	default:
+		/* Unknown protocol - pass to kernel */
+		return XDP_PASS;
+	}
 }
