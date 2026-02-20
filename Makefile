@@ -27,7 +27,7 @@ CFLAGS := -O2 -g -Wall -Wextra
 BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_$(ARCH)
 BPF_CFLAGS += -Wall -Wno-unused-value -Wno-pointer-sign
 BPF_CFLAGS += -Wno-compare-distinct-pointer-types
-BPF_CFLAGS += -I$(COMMON_DIR) -I$(LIB_DIR)
+BPF_CFLAGS += -I$(COMMON_DIR) -I$(LIB_DIR) -I$(BUILD_DIR)
 
 # User-space flags
 USER_CFLAGS := $(CFLAGS) -I$(COMMON_DIR) -I$(LIB_DIR)
@@ -40,6 +40,7 @@ BPF_CFLAGS += $(FEATURES)
 USER_CFLAGS += $(FEATURES)
 
 # Targets
+VMLINUX_H := $(BUILD_DIR)/vmlinux.h
 XDP_PROG := $(BUILD_DIR)/xdp_router.bpf.o
 XDP_SKEL := $(BUILD_DIR)/xdp_router.skel.h
 DAEMON := $(BUILD_DIR)/xdp-routerd
@@ -53,8 +54,19 @@ all: $(XDP_PROG) $(XDP_SKEL) $(DAEMON) $(CLI)
 $(BUILD_DIR) $(XDP_BUILD) $(CONTROL_BUILD) $(CLI_BUILD):
 	mkdir -p $@
 
+# Generate vmlinux.h from running kernel BTF
+$(VMLINUX_H): | $(BUILD_DIR)
+	@echo "  GEN      $@"
+	@if [ -f /sys/kernel/btf/vmlinux ]; then \
+		$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > $@; \
+	else \
+		echo "WARNING: /sys/kernel/btf/vmlinux not found, BTF support unavailable"; \
+		echo "Creating empty vmlinux.h placeholder"; \
+		echo "/* BTF not available on this kernel */" > $@; \
+	fi
+
 # BPF Program
-$(XDP_PROG): $(XDP_DIR)/core/main.c | $(BUILD_DIR)
+$(XDP_PROG): $(XDP_DIR)/core/main.c $(VMLINUX_H) | $(BUILD_DIR)
 	@echo "  BPF      $@"
 	@$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 
