@@ -1,0 +1,146 @@
+# xdp-router Makefile
+
+# Toolchain
+CLANG ?= clang
+LLC ?= llc
+CC ?= gcc
+BPFTOOL ?= bpftool
+ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
+
+# Directories
+SRC_DIR := src
+XDP_DIR := $(SRC_DIR)/xdp
+CONTROL_DIR := $(SRC_DIR)/control
+CLI_DIR := $(SRC_DIR)/cli
+COMMON_DIR := $(SRC_DIR)/common
+LIB_DIR := lib
+BUILD_DIR := build
+TESTS_DIR := tests
+
+# Output directories
+XDP_BUILD := $(BUILD_DIR)/xdp
+CONTROL_BUILD := $(BUILD_DIR)/control
+CLI_BUILD := $(BUILD_DIR)/cli
+
+# Compiler flags
+CFLAGS := -O2 -g -Wall -Wextra
+BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_$(ARCH)
+BPF_CFLAGS += -Wall -Wno-unused-value -Wno-pointer-sign
+BPF_CFLAGS += -Wno-compare-distinct-pointer-types
+BPF_CFLAGS += -I$(COMMON_DIR) -I$(LIB_DIR)
+
+# User-space flags
+USER_CFLAGS := $(CFLAGS) -I$(COMMON_DIR) -I$(LIB_DIR)
+LDFLAGS := -lbpf -lelf -lnl-3 -lnl-route-3
+
+# Feature flags (can be overridden)
+FEATURES ?= -DFEATURE_IPV4 -DFEATURE_IPV6 -DFEATURE_SRV6
+
+BPF_CFLAGS += $(FEATURES)
+USER_CFLAGS += $(FEATURES)
+
+# Targets
+XDP_PROG := $(BUILD_DIR)/xdp_router.bpf.o
+XDP_SKEL := $(BUILD_DIR)/xdp_router.skel.h
+DAEMON := $(BUILD_DIR)/xdp-routerd
+CLI := $(BUILD_DIR)/xdp-router-cli
+
+.PHONY: all clean install test help
+
+all: $(XDP_PROG) $(XDP_SKEL) $(DAEMON) $(CLI)
+
+# Create build directories
+$(BUILD_DIR) $(XDP_BUILD) $(CONTROL_BUILD) $(CLI_BUILD):
+	mkdir -p $@
+
+# BPF Program
+$(XDP_PROG): $(XDP_DIR)/core/main.c | $(BUILD_DIR)
+	@echo "  BPF      $@"
+	@$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+
+# BPF Skeleton
+$(XDP_SKEL): $(XDP_PROG)
+	@echo "  SKEL     $@"
+	@$(BPFTOOL) gen skeleton $< > $@
+
+# Control Plane Daemon
+$(DAEMON): $(CONTROL_DIR)/main.c $(XDP_SKEL) | $(CONTROL_BUILD)
+	@echo "  CC       $@"
+	@$(CC) $(USER_CFLAGS) $< -o $@ $(LDFLAGS)
+
+# CLI Tool
+$(CLI): $(CLI_DIR)/main.c $(XDP_SKEL) | $(CLI_BUILD)
+	@echo "  CC       $@"
+	@$(CC) $(USER_CFLAGS) $< -o $@ $(LDFLAGS)
+
+# Clean
+clean:
+	@echo "  CLEAN"
+	@rm -rf $(BUILD_DIR)
+
+# Install
+install: all
+	@echo "  INSTALL"
+	@install -D -m 0755 $(DAEMON) /usr/local/sbin/xdp-routerd
+	@install -D -m 0755 $(CLI) /usr/local/bin/xdp-router-cli
+	@install -D -m 0644 $(XDP_PROG) /usr/local/lib/xdp-router/xdp_router.bpf.o
+	@mkdir -p /etc/xdp-router
+
+# Uninstall
+uninstall:
+	@echo "  UNINSTALL"
+	@rm -f /usr/local/sbin/xdp-routerd
+	@rm -f /usr/local/bin/xdp-router-cli
+	@rm -rf /usr/local/lib/xdp-router
+
+# Tests
+test:
+	@echo "  TEST"
+	@cd $(TESTS_DIR) && make test
+
+test-unit:
+	@echo "  TEST-UNIT"
+	@cd $(TESTS_DIR)/unit && make test
+
+test-integration:
+	@echo "  TEST-INTEGRATION"
+	@cd $(TESTS_DIR)/integration && make test
+
+test-performance:
+	@echo "  TEST-PERFORMANCE"
+	@cd $(TESTS_DIR)/performance && make test
+
+# Format code
+format:
+	@echo "  FORMAT"
+	@find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-format -i
+
+# Lint
+lint:
+	@echo "  LINT"
+	@find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-tidy
+
+# Help
+help:
+	@echo "xdp-router build system"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all              - Build all components (default)"
+	@echo "  clean            - Remove build artifacts"
+	@echo "  install          - Install to system"
+	@echo "  uninstall        - Remove from system"
+	@echo "  test             - Run all tests"
+	@echo "  test-unit        - Run unit tests only"
+	@echo "  test-integration - Run integration tests only"
+	@echo "  test-performance - Run performance tests only"
+	@echo "  format           - Format code with clang-format"
+	@echo "  lint             - Lint code with clang-tidy"
+	@echo "  help             - Show this help"
+	@echo ""
+	@echo "Feature Flags:"
+	@echo "  FEATURES=\"-DFEATURE_IPV4 -DFEATURE_IPV6 -DFEATURE_SRV6\""
+	@echo ""
+	@echo "Examples:"
+	@echo "  make                    # Build everything"
+	@echo "  make FEATURES=\"-DFEATURE_IPV4\"  # Build IPv4 only"
+	@echo "  make clean install      # Clean build and install"

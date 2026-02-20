@@ -1,0 +1,77 @@
+# xdp-router configuration example
+# Copy to /etc/xdp-router/config.yaml and customize
+
+# Feature flags
+features:
+  # Enable/disable protocol support
+  ipv4: true
+  ipv6: true
+
+  # SRv6 configuration
+  srv6:
+    enabled: true
+    # Supported SRv6 behaviors
+    behaviors:
+      - End          # Basic segment endpoint
+      - End.DT4      # Decapsulation and IPv4 table lookup
+      - End.DT6      # Decapsulation and IPv6 table lookup
+    # Maximum number of local SIDs
+    max_sids: 1024
+
+  # Statistics collection
+  stats:
+    per_route: false    # Per-route stats (higher memory usage)
+    per_sid: true       # Per-SID stats for SRv6
+    per_interface: true # Per-interface stats
+
+# Interface configuration
+interfaces:
+  # Example: main uplink interface
+  - name: eth0
+    mode: native      # XDP mode: native, offload, or generic
+    # Note: 'offload' requires NIC support, 'generic' is for testing only
+
+  # Example: additional interface
+  - name: eth1
+    mode: native
+
+# Control plane settings
+control_plane:
+  # Netlink monitoring
+  netlink:
+    buffer_size: 8192      # Socket buffer size
+    groups:                # Netlink multicast groups to subscribe
+      - RTMGRP_IPV4_ROUTE
+      - RTMGRP_IPV6_ROUTE
+      - RTMGRP_NEIGH
+
+  # SRv6 control plane
+  srv6:
+    poll_interval_ms: 100  # How often to check for SID updates
+    sync_timeout_ms: 5000  # Timeout for FIB sync
+
+# Logging and debugging
+logging:
+  level: info              # Log level: debug, info, warn, error
+  syslog: true            # Send logs to syslog
+  console: true           # Also print to console
+  bpf_trace: false        # Enable BPF trace_printk (performance impact)
+
+# Performance tuning
+performance:
+  # CPU pinning for control plane daemon
+  cpu_affinity: []        # Empty = no pinning, or [0, 1, 2]
+
+  # Map sizes (override defaults)
+  map_sizes:
+    srv6_local_sids: 2048
+    srv6_policies: 1024
+    packet_stats: 256
+
+# Telemetry
+telemetry:
+  enabled: false
+  # Prometheus exporter
+  prometheus:
+    enabled: false
+    listen_addr: "0.0.0.0:9100"

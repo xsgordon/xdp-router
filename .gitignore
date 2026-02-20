@@ -1,0 +1,85 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.ll
+*.d
+*.cmd
+.*.d
+*.pyc
+__pycache__/
+
+# BPF objects
+*.bpf.o
+*.skel.h
+
+# Executables
+xdp-router
+xdp-routerd
+xdp-router-cli
+xdp-router-debug
+
+# Build directories
+build/
+dist/
+*.egg-info/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependency files
+.depend
+*.d
+
+# Test outputs
+test-results/
+*.log
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# Kernel modules
+*.ko
+*.mod.c
+Module.symvers
+modules.order
+
+# Core dumps (only in root directory)
+/core
+/core.*
+
+# BPF pinned maps and programs
+/sys/fs/bpf/*
+
+# Configuration (keep examples)
+/etc/xdp-router/config.yaml
+*.local.yaml
+
+# Temporary files
+tmp/
+*.tmp
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# Tags
+tags
+TAGS
+.tags
+.TAGS
+
+# Performance data
+perf.data
+perf.data.old
+*.perf
+
+# Valgrind
+*.valgrind
+vgcore.*
