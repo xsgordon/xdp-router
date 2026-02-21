@@ -15,6 +15,7 @@
 #include "xdp/maps/maps.h"
 
 /* IPv4 fragment flags and offset mask (in network byte order) */
+#define IP_DF		0x4000	/* Don't Fragment flag */
 #define IP_MF		0x2000	/* More Fragments flag */
 #define IP_OFFSET	0x1FFF	/* Fragment offset mask */
 
@@ -58,9 +59,26 @@ static __always_inline int parse_ipv4(struct parser_ctx *pctx)
 	pctx->is_ipv4 = 1;
 	pctx->l4_offset = pctx->l3_offset + hdr_len;
 
-	/* Check for fragments (offset != 0 or MF flag set) */
-	if (bpf_ntohs(iph->frag_off) & (IP_OFFSET | IP_MF))
-		pctx->is_fragment = 1;
+	/*
+	 * Validate fragment flags.
+	 * DF (Don't Fragment) and MF (More Fragments) are mutually exclusive
+	 * per RFC 791. This combination is illegal and indicates:
+	 * - Malformed packet
+	 * - Network fuzzing/scanning
+	 * - Potential attack attempt
+	 */
+	{
+		__u16 frag = bpf_ntohs(iph->frag_off);
+
+		if ((frag & IP_DF) && (frag & IP_MF)) {
+			/* Illegal flag combination */
+			return -1;
+		}
+
+		/* Check for fragments (offset != 0 or MF flag set) */
+		if (frag & (IP_OFFSET | IP_MF))
+			pctx->is_fragment = 1;
+	}
 
 	return 0;
 }
