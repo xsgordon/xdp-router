@@ -30,20 +30,21 @@ int xdp_router_main(struct xdp_md *ctx)
 	int rc;
 
 	/*
-	 * Get runtime configuration and copy to stack atomically.
-	 * This prevents TOCTOU race conditions where config could be
-	 * modified by user-space between checks.
+	 * Get runtime configuration and copy to stack.
 	 *
-	 * Use bpf_probe_read() instead of struct assignment to ensure
-	 * atomic copy. Simple assignment (*cfg) may be compiled into
-	 * multiple load instructions, creating a TOCTOU window.
+	 * Security note: While direct struct copy may generate multiple load
+	 * instructions, creating a theoretical TOCTOU window, this is acceptable
+	 * because:
+	 * 1. Config updates are rare (admin operations only)
+	 * 2. XDP runs with preemption disabled
+	 * 3. Worst case: one packet processed with mixed old/new config
+	 * 4. bpf_probe_read() is NOT available for XDP programs (tracing only)
+	 *
+	 * Fail-closed policy: if no config exists, use minimal features.
 	 */
 	cfg = get_config();
 	if (cfg) {
-		if (bpf_probe_read(&cfg_local, sizeof(cfg_local), cfg) != 0) {
-			/* Read failed - use safe defaults */
-			cfg_local.features = FEATURE_IPV4_BIT;
-		}
+		cfg_local = *cfg;
 	} else {
 		/* No config: fail-closed with minimal features */
 		cfg_local.features = FEATURE_IPV4_BIT;

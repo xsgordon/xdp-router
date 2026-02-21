@@ -205,15 +205,17 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 				pkt_len = 9000;
 
 			/* Ingress stats with saturation */
-			stats = bpf_map_lookup_elem(&packet_stats,
-						    &ctx->ingress_ifindex);
-			if (stats) {
-				if (stats->rx_packets < UINT64_MAX)
-					stats->rx_packets++;
-				if (stats->rx_bytes < UINT64_MAX - pkt_len)
-					stats->rx_bytes += pkt_len;
-				else
-					stats->rx_bytes = UINT64_MAX;
+			{
+				__u32 ingress_if = ctx->ingress_ifindex;
+				stats = bpf_map_lookup_elem(&packet_stats, &ingress_if);
+				if (stats) {
+					if (stats->rx_packets < UINT64_MAX)
+						stats->rx_packets++;
+					if (stats->rx_bytes < UINT64_MAX - pkt_len)
+						stats->rx_bytes += pkt_len;
+					else
+						stats->rx_bytes = UINT64_MAX;
+				}
 			}
 
 			/* Egress stats with saturation */
