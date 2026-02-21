@@ -5,6 +5,8 @@
 #define __XDP_ROUTER_MAPS_H
 
 #include <linux/types.h>
+#include <bpf/bpf_helpers.h>
+
 #include "common/common.h"
 
 /* Maximum map sizes */

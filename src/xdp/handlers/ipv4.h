@@ -4,13 +4,15 @@
 #ifndef __XDP_ROUTER_HANDLER_IPV4_H
 #define __XDP_ROUTER_HANDLER_IPV4_H
 
-#include <linux/ip.h>
 #include <linux/bpf.h>
+#include <linux/in.h>
+#include <linux/ip.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
 #include "common/parser.h"
 #include "common/common.h"
+#include "xdp/maps/maps.h"
 
 /*
  * Parse IPv4 header
