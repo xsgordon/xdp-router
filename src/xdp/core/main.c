@@ -24,8 +24,12 @@ char LICENSE[] SEC("license") = "GPL";
 SEC("xdp")
 int xdp_router_main(struct xdp_md *ctx)
 {
+	struct xdp_config *cfg;
 	struct parser_ctx pctx = {};
 	int rc;
+
+	/* Get runtime configuration */
+	cfg = get_config();
 
 	/* Initialize parser context */
 	pctx.data = (void *)(long)ctx->data;
@@ -49,6 +53,10 @@ int xdp_router_main(struct xdp_md *ctx)
 	/* Dispatch based on EtherType */
 	switch (pctx.ethertype) {
 	case ETH_P_IP:
+		/* Check if IPv4 is enabled (runtime config) */
+		if (cfg && !(cfg->features & FEATURE_IPV4_BIT))
+			return XDP_PASS;
+
 		/* Parse IPv4 header */
 		rc = parse_ipv4(&pctx);
 		if (rc < 0) {
@@ -60,6 +68,10 @@ int xdp_router_main(struct xdp_md *ctx)
 		return handle_ipv4(ctx, &pctx);
 
 	case ETH_P_IPV6:
+		/* Check if IPv6 is enabled (runtime config) */
+		if (cfg && !(cfg->features & FEATURE_IPV6_BIT))
+			return XDP_PASS;
+
 		/* Parse IPv6 header */
 		rc = parse_ipv6(&pctx);
 		if (rc < 0) {

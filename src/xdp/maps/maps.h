@@ -41,6 +41,16 @@ struct {
  * Runtime configuration
  * Key: 0 (singleton)
  * Value: struct xdp_config
+ *
+ * Default: All features enabled
+ * User-space can update this map to enable/disable features at runtime
+ * without reloading the BPF program.
+ *
+ * Example (user-space):
+ *   struct xdp_config cfg = {
+ *       .features = FEATURE_IPV4_BIT | FEATURE_IPV6_BIT,
+ *   };
+ *   bpf_map_update_elem(config_map_fd, &key, &cfg, BPF_ANY);
  */
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
