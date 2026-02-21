@@ -128,12 +128,14 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 	__u8 old_ttl;
 	int rc;
 
-	/* Check TTL */
-	if (iph->ttl <= 1) {
-		/* TTL expired - let kernel handle ICMP */
-		record_drop(ctx->ingress_ifindex, DROP_TTL_EXCEEDED);
+	/*
+	 * Check TTL.
+	 * TTL <= 1 means packet should not be forwarded. Pass to kernel
+	 * to generate ICMP Time Exceeded message. Don't count as "dropped"
+	 * since packet is passed to kernel stack, not dropped.
+	 */
+	if (iph->ttl <= 1)
 		return XDP_PASS;
-	}
 
 	/*
 	 * Pass fragmented packets to kernel for reassembly.

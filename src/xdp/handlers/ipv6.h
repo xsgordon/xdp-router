@@ -74,12 +74,14 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 	struct ethhdr *eth = pctx->eth;
 	int rc;
 
-	/* Check hop limit */
-	if (ip6h->hop_limit <= 1) {
-		/* Hop limit expired - let kernel handle ICMPv6 */
-		record_drop(ctx->ingress_ifindex, DROP_TTL_EXCEEDED);
+	/*
+	 * Check hop limit.
+	 * Hop limit <= 1 means packet should not be forwarded. Pass to kernel
+	 * to generate ICMPv6 Time Exceeded message. Don't count as "dropped"
+	 * since packet is passed to kernel stack, not dropped.
+	 */
+	if (ip6h->hop_limit <= 1)
 		return XDP_PASS;
-	}
 
 	/*
 	 * Pass packets with extension headers or special protocols to kernel.
