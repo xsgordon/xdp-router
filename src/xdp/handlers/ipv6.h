@@ -110,11 +110,27 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 		__builtin_memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
 		__builtin_memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
 
-		/* Update statistics */
-		update_stats(ctx->ingress_ifindex,
-			     pctx->data_end - pctx->data, true);
-		update_stats(fib_params.ifindex,
-			     pctx->data_end - pctx->data, false);
+		/* Update statistics - inlined to reduce map lookups */
+		{
+			struct if_stats *stats;
+			__u64 pkt_len = pctx->data_end - pctx->data;
+
+			/* Ingress stats */
+			stats = bpf_map_lookup_elem(&packet_stats,
+						    &ctx->ingress_ifindex);
+			if (stats) {
+				stats->rx_packets++;
+				stats->rx_bytes += pkt_len;
+			}
+
+			/* Egress stats */
+			stats = bpf_map_lookup_elem(&packet_stats,
+						    &fib_params.ifindex);
+			if (stats) {
+				stats->tx_packets++;
+				stats->tx_bytes += pkt_len;
+			}
+		}
 
 		/* Redirect to output interface */
 		return bpf_redirect(fib_params.ifindex, 0);
