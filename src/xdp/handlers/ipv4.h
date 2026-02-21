@@ -109,6 +109,16 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 		return XDP_PASS;
 	}
 
+	/*
+	 * Pass fragmented packets to kernel for reassembly.
+	 * We don't want to forward fragments in XDP because:
+	 * 1. Can't determine L4 ports from non-first fragments
+	 * 2. Reassembly is complex and not suitable for XDP
+	 * 3. Kernel handles this correctly already
+	 */
+	if (pctx->is_fragment)
+		return XDP_PASS;
+
 	/* Set up FIB lookup parameters */
 	fib_params.family = AF_INET;
 	fib_params.tos = iph->tos;
