@@ -83,4 +83,9 @@ perf.data.old
 # Valgrind
 *.valgrind
 vgcore.*
+
+# Test binaries
 tests/unit/test_parsers
+tests/unit/test_ethernet_parser
+tests/unit/test_ipv4_parser
+tests/unit/test_ipv6_parser

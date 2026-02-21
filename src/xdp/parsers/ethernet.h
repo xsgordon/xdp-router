@@ -13,10 +13,22 @@
 /* Define VLAN header if not available in kernel headers */
 #ifndef __struct_vlan_hdr_defined
 #define __struct_vlan_hdr_defined
+
+#ifdef __BPF__
+/* BPF context */
 struct vlan_hdr {
 	__be16 h_vlan_TCI;
 	__be16 h_vlan_encapsulated_proto;
 };
+#else
+/* User-space - use standard types */
+#include <stdint.h>
+struct vlan_hdr {
+	uint16_t h_vlan_TCI;
+	uint16_t h_vlan_encapsulated_proto;
+} __attribute__((packed));
+#endif
+
 #endif
 
 /*
@@ -47,7 +59,9 @@ static __always_inline int parse_ethernet(struct parser_ctx *pctx)
 	pctx->l3_offset = sizeof(*eth);
 
 	/* Handle VLAN tags (support single and double tagging) */
+#ifdef __BPF__
 	#pragma unroll
+#endif
 	for (int i = 0; i < 2; i++) {
 		if (proto != bpf_htons(ETH_P_8021Q) &&
 		    proto != bpf_htons(ETH_P_8021AD))
