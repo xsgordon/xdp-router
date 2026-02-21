@@ -38,6 +38,14 @@ int xdp_router_main(struct xdp_md *ctx)
 		return XDP_DROP;
 	}
 
+	/*
+	 * Pass multicast and broadcast frames to kernel.
+	 * Multicast/broadcast bit is the LSB of the first octet.
+	 * This includes control plane traffic (routing protocols, ARP, etc.)
+	 */
+	if (pctx.eth->h_dest[0] & 0x01)
+		return XDP_PASS;
+
 	/* Dispatch based on EtherType */
 	switch (pctx.ethertype) {
 	case ETH_P_IP:
