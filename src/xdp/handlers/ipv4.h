@@ -144,6 +144,14 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 		__builtin_memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
 		__builtin_memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
 
+		/*
+		 * Paranoid bounds check after modifications.
+		 * In theory not needed since we didn't change packet size,
+		 * but good practice for production BPF programs.
+		 */
+		if ((void *)(eth + 1) > (void *)(long)ctx->data_end)
+			return XDP_ABORTED;
+
 		/* Update statistics - inlined to reduce map lookups */
 		{
 			struct if_stats *stats;
