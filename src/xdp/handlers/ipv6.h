@@ -146,7 +146,7 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 		if ((void *)(eth + 1) > (void *)(long)ctx->data_end)
 			return XDP_ABORTED;
 
-		/* Update statistics - inlined to reduce map lookups */
+		/* Update statistics with saturating arithmetic */
 		{
 			struct if_stats *stats;
 			__u64 pkt_len;
@@ -167,20 +167,28 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 			if (pkt_len > 9000)
 				pkt_len = 9000;
 
-			/* Ingress stats */
+			/* Ingress stats with saturation */
 			stats = bpf_map_lookup_elem(&packet_stats,
 						    &ctx->ingress_ifindex);
 			if (stats) {
-				stats->rx_packets++;
-				stats->rx_bytes += pkt_len;
+				if (stats->rx_packets < UINT64_MAX)
+					stats->rx_packets++;
+				if (stats->rx_bytes < UINT64_MAX - pkt_len)
+					stats->rx_bytes += pkt_len;
+				else
+					stats->rx_bytes = UINT64_MAX;
 			}
 
-			/* Egress stats */
+			/* Egress stats with saturation */
 			stats = bpf_map_lookup_elem(&packet_stats,
 						    &fib_params.ifindex);
 			if (stats) {
-				stats->tx_packets++;
-				stats->tx_bytes += pkt_len;
+				if (stats->tx_packets < UINT64_MAX)
+					stats->tx_packets++;
+				if (stats->tx_bytes < UINT64_MAX - pkt_len)
+					stats->tx_bytes += pkt_len;
+				else
+					stats->tx_bytes = UINT64_MAX;
 			}
 		}
 
