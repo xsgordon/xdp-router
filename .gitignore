@@ -83,3 +83,4 @@ perf.data.old
 # Valgrind
 *.valgrind
 vgcore.*
+tests/unit/test_parsers
