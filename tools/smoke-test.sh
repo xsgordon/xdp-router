@@ -18,7 +18,10 @@ set -e
 
 # Configuration
 IFACE="${1:-veth0}"
-XDP_PROG="../build/xdp_router.bpf.o"
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+XDP_PROG="$PROJECT_ROOT/build/xdp_router.bpf.o"
 TEST_IP="192.168.100.1"
 PING_COUNT=3
 
