@@ -53,6 +53,14 @@ int xdp_router_main(struct xdp_md *ctx)
 	pctx.data = (void *)(long)ctx->data;
 	pctx.data_end = (void *)(long)ctx->data_end;
 
+	/*
+	 * Validate ingress interface index.
+	 * We validate FIB-returned ifindex, so we should also validate
+	 * kernel-provided ingress ifindex for consistency.
+	 */
+	if (ctx->ingress_ifindex >= MAX_INTERFACES)
+		return XDP_ABORTED;
+
 	/* Parse Ethernet header */
 	rc = parse_ethernet(&pctx);
 	if (rc < 0) {
