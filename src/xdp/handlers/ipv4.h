@@ -14,6 +14,10 @@
 #include "common/common.h"
 #include "xdp/maps/maps.h"
 
+/* IPv4 fragment flags and offset mask (in network byte order) */
+#define IP_MF		0x2000	/* More Fragments flag */
+#define IP_OFFSET	0x1FFF	/* Fragment offset mask */
+
 /*
  * Parse IPv4 header
  *
@@ -40,18 +44,22 @@ static __always_inline int parse_ipv4(struct parser_ctx *pctx)
 	if (iph->ihl < 5)
 		return -1;
 
-	/* Bounds check for full header (including options) */
-	if (l3_start + (iph->ihl * 4) > pctx->data_end)
+	/*
+	 * Bounds check for full header (including options)
+	 * Check arithmetic bounds before pointer arithmetic to prevent overflow
+	 */
+	__u32 hdr_len = iph->ihl * 4;
+	if (hdr_len > (pctx->data_end - l3_start))
 		return -1;
 
 	pctx->iph = iph;
 	pctx->protocol = iph->protocol;
 	pctx->ttl = iph->ttl;
 	pctx->is_ipv4 = 1;
-	pctx->l4_offset = pctx->l3_offset + (iph->ihl * 4);
+	pctx->l4_offset = pctx->l3_offset + hdr_len;
 
-	/* Check for fragments */
-	if (bpf_ntohs(iph->frag_off) & (0x1FFF | 0x2000))
+	/* Check for fragments (offset != 0 or MF flag set) */
+	if (bpf_ntohs(iph->frag_off) & (IP_OFFSET | IP_MF))
 		pctx->is_fragment = 1;
 
 	return 0;
@@ -135,6 +143,16 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 
 	switch (rc) {
 	case BPF_FIB_LKUP_RET_SUCCESS:
+		/*
+		 * Validate returned interface index.
+		 * While kernel should return valid values, defensive programming
+		 * requires validation to prevent undefined behavior.
+		 */
+		if (fib_params.ifindex == 0 || fib_params.ifindex >= MAX_INTERFACES) {
+			record_drop(ctx->ingress_ifindex, DROP_INVALID_PACKET);
+			return XDP_DROP;
+		}
+
 		/* Decrement TTL and update checksum */
 		old_ttl = iph->ttl;
 		iph->ttl--;
@@ -155,7 +173,23 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 		/* Update statistics - inlined to reduce map lookups */
 		{
 			struct if_stats *stats;
-			__u64 pkt_len = pctx->data_end - pctx->data;
+			__u64 pkt_len;
+
+			/*
+			 * Paranoid check: kernel guarantees data_end >= data,
+			 * but defensive programming requires verification.
+			 */
+			if (pctx->data_end < pctx->data)
+				return XDP_ABORTED;
+
+			pkt_len = pctx->data_end - pctx->data;
+
+			/*
+			 * Sanity check: cap at jumbo frame size to prevent
+			 * statistics corruption from kernel bugs.
+			 */
+			if (pkt_len > 9000)
+				pkt_len = 9000;
 
 			/* Ingress stats */
 			stats = bpf_map_lookup_elem(&packet_stats,

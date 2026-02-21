@@ -72,13 +72,25 @@ static __always_inline void update_stats(__u32 ifindex, __u64 bytes, bool rx)
 	 * PERCPU maps: each CPU has its own copy, no concurrent access.
 	 * Simple increments are correct and much faster than atomics.
 	 * User-space aggregates across CPUs when reading.
+	 *
+	 * Use saturating arithmetic to prevent overflow wrap-around.
+	 * While unlikely, counters could overflow on high-speed interfaces
+	 * over long uptimes. Saturation is better than wrapping to 0.
 	 */
 	if (rx) {
-		stats->rx_packets++;
-		stats->rx_bytes += bytes;
+		if (stats->rx_packets < UINT64_MAX)
+			stats->rx_packets++;
+		if (stats->rx_bytes < UINT64_MAX - bytes)
+			stats->rx_bytes += bytes;
+		else
+			stats->rx_bytes = UINT64_MAX;
 	} else {
-		stats->tx_packets++;
-		stats->tx_bytes += bytes;
+		if (stats->tx_packets < UINT64_MAX)
+			stats->tx_packets++;
+		if (stats->tx_bytes < UINT64_MAX - bytes)
+			stats->tx_bytes += bytes;
+		else
+			stats->tx_bytes = UINT64_MAX;
 	}
 }
 
@@ -89,14 +101,20 @@ static __always_inline void record_drop(__u32 ifindex, enum drop_reason reason)
 	__u32 key = reason;
 	struct if_stats *stats;
 
-	/* Update drop counter (PERCPU map, no atomics needed) */
+	/*
+	 * Update drop counter (PERCPU map, no atomics needed)
+	 * Use saturating increment to prevent overflow.
+	 */
 	count = bpf_map_lookup_elem(&drop_stats, &key);
-	if (count)
+	if (count && *count < UINT64_MAX)
 		(*count)++;
 
-	/* Update interface drop counter (PERCPU map, no atomics needed) */
+	/*
+	 * Update interface drop counter (PERCPU map, no atomics needed)
+	 * Use saturating increment to prevent overflow.
+	 */
 	stats = bpf_map_lookup_elem(&packet_stats, &ifindex);
-	if (stats)
+	if (stats && stats->dropped < UINT64_MAX)
 		stats->dropped++;
 }
 

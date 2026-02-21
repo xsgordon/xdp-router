@@ -32,8 +32,13 @@ static __always_inline int parse_ipv6(struct parser_ctx *pctx)
 	if ((void *)(ip6h + 1) > pctx->data_end)
 		return -1;
 
-	/* Validate IP version */
-	if (((ip6h->version) & 0xF0) >> 4 != 6)
+	/*
+	 * Validate IP version
+	 * The version field is in the high nibble of the first byte.
+	 * We must read it directly from the packet as struct layout varies.
+	 */
+	__u8 version = (*(__u8 *)ip6h & 0xF0) >> 4;
+	if (version != 6)
 		return -1;
 
 	pctx->ip6h = ip6h;
@@ -77,13 +82,24 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 	}
 
 	/*
-	 * If packet has extension headers, pass to kernel for now.
-	 * Phase 4 will add SRv6 support with full extension header parsing.
+	 * Pass packets with extension headers or special protocols to kernel.
+	 * This includes:
+	 * - Extension headers (routing, hop-by-hop, destination options, fragments)
+	 * - IPsec (AH, ESP) - must be processed by kernel IPsec stack
+	 * - ICMPv6 - needed for Neighbor Discovery, Router Advertisement, etc.
+	 * - Mobility Header - for Mobile IPv6
+	 *
+	 * Phase 4 will add SRv6 support with selective extension header parsing.
 	 */
-	if (ip6h->nexthdr == IPPROTO_ROUTING ||
-	    ip6h->nexthdr == IPPROTO_HOPOPTS ||
-	    ip6h->nexthdr == IPPROTO_DSTOPTS ||
-	    ip6h->nexthdr == IPPROTO_FRAGMENT) {
+	switch (ip6h->nexthdr) {
+	case IPPROTO_ROUTING:
+	case IPPROTO_HOPOPTS:
+	case IPPROTO_DSTOPTS:
+	case IPPROTO_FRAGMENT:
+	case IPPROTO_AH:	/* IPsec Authentication Header */
+	case IPPROTO_ESP:	/* IPsec Encapsulating Security Payload */
+	case IPPROTO_ICMPV6:	/* ICMPv6 (ND, RA, etc.) */
+	case IPPROTO_MH:	/* Mobility Header */
 		return XDP_PASS;
 	}
 
@@ -105,6 +121,16 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 
 	switch (rc) {
 	case BPF_FIB_LKUP_RET_SUCCESS:
+		/*
+		 * Validate returned interface index.
+		 * While kernel should return valid values, defensive programming
+		 * requires validation to prevent undefined behavior.
+		 */
+		if (fib_params.ifindex == 0 || fib_params.ifindex >= MAX_INTERFACES) {
+			record_drop(ctx->ingress_ifindex, DROP_INVALID_PACKET);
+			return XDP_DROP;
+		}
+
 		/* Decrement hop limit (no checksum in IPv6) */
 		ip6h->hop_limit--;
 
@@ -123,7 +149,23 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 		/* Update statistics - inlined to reduce map lookups */
 		{
 			struct if_stats *stats;
-			__u64 pkt_len = pctx->data_end - pctx->data;
+			__u64 pkt_len;
+
+			/*
+			 * Paranoid check: kernel guarantees data_end >= data,
+			 * but defensive programming requires verification.
+			 */
+			if (pctx->data_end < pctx->data)
+				return XDP_ABORTED;
+
+			pkt_len = pctx->data_end - pctx->data;
+
+			/*
+			 * Sanity check: cap at jumbo frame size to prevent
+			 * statistics corruption from kernel bugs.
+			 */
+			if (pkt_len > 9000)
+				pkt_len = 9000;
 
 			/* Ingress stats */
 			stats = bpf_map_lookup_elem(&packet_stats,

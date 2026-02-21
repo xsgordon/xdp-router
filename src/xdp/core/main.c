@@ -24,12 +24,21 @@ char LICENSE[] SEC("license") = "GPL";
 SEC("xdp")
 int xdp_router_main(struct xdp_md *ctx)
 {
+	struct xdp_config cfg_local = {0};
 	struct xdp_config *cfg;
 	struct parser_ctx pctx = {};
 	int rc;
 
-	/* Get runtime configuration */
+	/*
+	 * Get runtime configuration and copy to stack.
+	 * This prevents TOCTOU race conditions where config could be
+	 * modified by user-space between checks. Stack copy is atomic.
+	 */
 	cfg = get_config();
+	if (cfg)
+		cfg_local = *cfg;
+	else
+		cfg_local.features = 0xFFFFFFFF;  /* All features enabled if no config */
 
 	/* Initialize parser context */
 	pctx.data = (void *)(long)ctx->data;
@@ -54,7 +63,7 @@ int xdp_router_main(struct xdp_md *ctx)
 	switch (pctx.ethertype) {
 	case ETH_P_IP:
 		/* Check if IPv4 is enabled (runtime config) */
-		if (cfg && !(cfg->features & FEATURE_IPV4_BIT))
+		if (!(cfg_local.features & FEATURE_IPV4_BIT))
 			return XDP_PASS;
 
 		/* Parse IPv4 header */
@@ -69,7 +78,7 @@ int xdp_router_main(struct xdp_md *ctx)
 
 	case ETH_P_IPV6:
 		/* Check if IPv6 is enabled (runtime config) */
-		if (cfg && !(cfg->features & FEATURE_IPV6_BIT))
+		if (!(cfg_local.features & FEATURE_IPV6_BIT))
 			return XDP_PASS;
 
 		/* Parse IPv6 header */

@@ -53,6 +53,14 @@ static __always_inline int parse_ethernet(struct parser_ctx *pctx)
 		pctx->l3_offset += sizeof(*vlan);
 	}
 
+	/*
+	 * Security: Reject packets with more than 2 VLAN tags.
+	 * This prevents protocol confusion attacks where the 3rd VLAN tag's
+	 * EtherType field could be interpreted as the packet's protocol.
+	 */
+	if (proto == bpf_htons(ETH_P_8021Q) || proto == bpf_htons(ETH_P_8021AD))
+		return -1;
+
 	pctx->ethertype = bpf_ntohs(proto);
 	return 0;
 }
