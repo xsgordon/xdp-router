@@ -105,7 +105,19 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 
 	/* Set up FIB lookup parameters */
 	fib_params.family = AF_INET6;
-	fib_params.flowinfo = *(__be32 *)ip6h & IPV6_FLOWINFO_MASK;
+
+	/*
+	 * Extract flow info with safe unaligned access.
+	 * IPv6 header may not be 4-byte aligned (e.g., after 14-byte Ethernet
+	 * header). Direct cast to __be32* causes alignment faults on ARM/MIPS.
+	 * Use memcpy for portable, safe access.
+	 */
+	{
+		__be32 first_word;
+		__builtin_memcpy(&first_word, ip6h, sizeof(first_word));
+		fib_params.flowinfo = first_word & IPV6_FLOWINFO_MASK;
+	}
+
 	fib_params.l4_protocol = ip6h->nexthdr;
 	fib_params.sport = 0;
 	fib_params.dport = 0;
