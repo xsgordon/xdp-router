@@ -51,27 +51,34 @@ This project is in early development. See [PLAN.md](PLAN.md) for the detailed im
 
 ### Prerequisites
 
-- Linux Kernel 5.10+ with XDP support
-- clang 10+ with BPF target support
-- libbpf >= 0.5
-- libnl-3
+- Linux Kernel ≥ 5.8 with BTF support
+- clang ≥ 10 with BPF target support
+- libbpf ≥ 0.3
+- libnl-3 ≥ 3.2
 - libelf
 - bpftool
-- iproute2 with seg6 support
+- Standard build tools (gcc, make)
 
-### Build Instructions
+**📖 For detailed dependency information and installation instructions**, see [docs/BUILD_DEPENDENCIES.md](docs/BUILD_DEPENDENCIES.md)
+
+### Quick Build
 
 ```bash
-# Install dependencies (Fedora/RHEL)
-sudo dnf install -y clang llvm libbpf-devel libnl3-devel elfutils-libelf-devel bpftool
+# Fedora/RHEL
+sudo dnf install -y clang llvm gcc make libbpf-devel bpftool \
+    kernel-headers kernel-devel libnl3-devel elfutils-libelf-devel
 
-# Install dependencies (Ubuntu/Debian)
-sudo apt install -y clang llvm libbpf-dev libnl-3-dev libelf-dev linux-tools-common
+# Ubuntu/Debian
+sudo apt install -y clang llvm gcc make libbpf-dev \
+    linux-tools-$(uname -r) linux-headers-$(uname -r) \
+    libnl-3-dev libnl-route-3-dev libelf-dev
 
 # Build
-make
+make check-deps  # Verify dependencies
+make             # Compile all components
+make verify      # Run BPF verifier
 
-# Install
+# Install (optional)
 sudo make install
 ```
 
@@ -147,9 +154,48 @@ Preliminary benchmarks (target goals):
 
 ## Documentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Detailed system architecture
-- [PLAN.md](PLAN.md) - Implementation roadmap
-- [docs/](docs/) - Additional documentation
+### Core Documentation
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Detailed system architecture
+- [PLAN.md](PLAN.md) - Implementation roadmap and phases
+
+### Build & Development
+- [BUILD_DEPENDENCIES.md](docs/BUILD_DEPENDENCIES.md) - Dependencies and installation
+- [TESTING.md](docs/TESTING.md) - Comprehensive testing guide
+- [MAPS.md](docs/MAPS.md) - BPF maps reference
+
+### Security
+- [SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) - Initial security review
+- [SECURITY_REVIEW_POST_FIXES.md](docs/SECURITY_REVIEW_POST_FIXES.md) - Post-fix review
+- [SECURITY_FIXES_FINAL.md](docs/SECURITY_FIXES_FINAL.md) - Final implementation report
+
+All documentation can be found in the [docs/](docs/) directory.
+
+## Security
+
+xdp-router has undergone multiple security reviews to identify and fix vulnerabilities. All critical, high, and medium severity issues have been addressed.
+
+### Security Features
+
+- ✅ **Saturating counters** - Prevents overflow wrap-around
+- ✅ **Atomic config reads** - Eliminates TOCTOU races
+- ✅ **Fail-closed defaults** - Secure default configuration
+- ✅ **Input validation** - All kernel and FIB inputs validated
+- ✅ **Malformed packet detection** - Rejects invalid packets
+- ✅ **Cross-architecture safety** - Portable unaligned access
+- ✅ **Bounds checking** - Comprehensive memory safety
+
+### Security Reviews
+
+Three comprehensive security reviews have been conducted:
+1. **Initial Review** - Identified 9 issues (1 CRITICAL, 3 HIGH, 5 MEDIUM)
+2. **Post-Implementation Review** - Found 10 regressions/new issues
+3. **Final Review** - All issues resolved, ready for testing
+
+See [docs/SECURITY_FIXES_FINAL.md](docs/SECURITY_FIXES_FINAL.md) for complete details.
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please report it privately to [security contact TBD]. Do not create public issues for security vulnerabilities.
 
 ## Development
 
@@ -169,14 +215,22 @@ xdp-router/
 
 ### Testing
 
+**📖 For comprehensive testing procedures**, see [docs/TESTING.md](docs/TESTING.md)
+
 ```bash
 # Run unit tests
-make test
+make test-unit
 
-# Run integration tests
+# Run smoke test
+sudo ./tools/smoke-test.sh <interface>
+
+# Run BPF verifier
+make verify
+
+# Integration tests (Phase 3+)
 make test-integration
 
-# Run performance tests
+# Performance tests (Phase 7)
 make test-performance
 ```
 
