@@ -112,6 +112,10 @@ struct if_stats {
 /* Maximum drop reasons */
 #define MAX_DROP_REASONS 64
 
+/* Packet size limits */
+#define MAX_JUMBO_FRAME_SIZE 9000	/* Maximum jumbo frame size for stats sanity check */
+#define MAX_VLAN_TAGS 2			/* Maximum VLAN tags to parse (prevent attacks) */
+
 #ifndef __stringify
 #define __stringify_1(x...) #x
 #define __stringify(x...) __stringify_1(x)

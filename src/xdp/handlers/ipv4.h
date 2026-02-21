@@ -123,45 +123,8 @@ static __always_inline int handle_ipv4(struct xdp_md *ctx, struct parser_ctx *pc
 			return XDP_ABORTED;
 
 		/* Update statistics with saturating arithmetic */
-		{
-			struct if_stats *stats;
-			__u64 pkt_len;
-
-			pkt_len = pctx->data_end - pctx->data;
-
-			/*
-			 * Sanity check: cap at jumbo frame size to prevent
-			 * statistics corruption from kernel bugs.
-			 */
-			if (pkt_len > 9000)
-				pkt_len = 9000;
-
-			/* Ingress stats with saturation */
-			{
-				__u32 ingress_if = ctx->ingress_ifindex;
-				stats = bpf_map_lookup_elem(&packet_stats, &ingress_if);
-				if (stats) {
-					if (stats->rx_packets < UINT64_MAX)
-						stats->rx_packets++;
-					if (stats->rx_bytes < UINT64_MAX - pkt_len)
-						stats->rx_bytes += pkt_len;
-					else
-						stats->rx_bytes = UINT64_MAX;
-				}
-			}
-
-			/* Egress stats with saturation */
-			stats = bpf_map_lookup_elem(&packet_stats,
-						    &fib_params.ifindex);
-			if (stats) {
-				if (stats->tx_packets < UINT64_MAX)
-					stats->tx_packets++;
-				if (stats->tx_bytes < UINT64_MAX - pkt_len)
-					stats->tx_bytes += pkt_len;
-				else
-					stats->tx_bytes = UINT64_MAX;
-			}
-		}
+		update_forwarding_stats(pctx->data, pctx->data_end,
+					ctx->ingress_ifindex, fib_params.ifindex);
 
 		/* Redirect to output interface */
 		return bpf_redirect(fib_params.ifindex, 0);

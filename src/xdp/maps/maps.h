@@ -125,4 +125,57 @@ static __always_inline struct xdp_config *get_config(void)
 	return bpf_map_lookup_elem(&config_map, &key);
 }
 
+/*
+ * Helper: Update forwarding statistics for both ingress and egress interfaces
+ *
+ * This function updates packet and byte counters with saturating arithmetic
+ * to prevent overflow wrap-around. It's extracted from handler code to
+ * eliminate duplication and ensure consistency.
+ *
+ * @param data       Packet data start pointer
+ * @param data_end   Packet data end pointer
+ * @param ingress_if Ingress interface index
+ * @param egress_if  Egress interface index
+ */
+static __always_inline void update_forwarding_stats(
+	void *data,
+	void *data_end,
+	__u32 ingress_if,
+	__u32 egress_if)
+{
+	struct if_stats *stats;
+	__u64 pkt_len;
+
+	pkt_len = data_end - data;
+
+	/*
+	 * Sanity check: cap at jumbo frame size to prevent
+	 * statistics corruption from kernel bugs.
+	 */
+	if (pkt_len > MAX_JUMBO_FRAME_SIZE)
+		pkt_len = MAX_JUMBO_FRAME_SIZE;
+
+	/* Ingress stats with saturation */
+	stats = bpf_map_lookup_elem(&packet_stats, &ingress_if);
+	if (stats) {
+		if (stats->rx_packets < UINT64_MAX)
+			stats->rx_packets++;
+		if (stats->rx_bytes < UINT64_MAX - pkt_len)
+			stats->rx_bytes += pkt_len;
+		else
+			stats->rx_bytes = UINT64_MAX;
+	}
+
+	/* Egress stats with saturation */
+	stats = bpf_map_lookup_elem(&packet_stats, &egress_if);
+	if (stats) {
+		if (stats->tx_packets < UINT64_MAX)
+			stats->tx_packets++;
+		if (stats->tx_bytes < UINT64_MAX - pkt_len)
+			stats->tx_bytes += pkt_len;
+		else
+			stats->tx_bytes = UINT64_MAX;
+	}
+}
+
 #endif /* __XDP_ROUTER_MAPS_H */

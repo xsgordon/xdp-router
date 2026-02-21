@@ -62,7 +62,7 @@ static __always_inline int parse_ethernet(struct parser_ctx *pctx)
 #ifdef __BPF__
 	#pragma unroll
 #endif
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < MAX_VLAN_TAGS; i++) {
 		if (proto != bpf_htons(ETH_P_8021Q) &&
 		    proto != bpf_htons(ETH_P_8021AD))
 			break;
