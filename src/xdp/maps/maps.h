@@ -60,7 +60,7 @@ struct {
 } config_map SEC(".maps");
 
 /* Helper: Update packet statistics */
-static __always_inline void update_stats(__u32 ifindex, __u64 bytes, bool rx)
+static __always_inline void update_stats(__u32 ifindex, __u64 bytes, int rx)
 {
 	struct if_stats *stats;
 

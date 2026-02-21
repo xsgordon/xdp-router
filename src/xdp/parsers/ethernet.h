@@ -10,6 +10,15 @@
 
 #include "common/parser.h"
 
+/* Define VLAN header if not available in kernel headers */
+#ifndef __struct_vlan_hdr_defined
+#define __struct_vlan_hdr_defined
+struct vlan_hdr {
+	__be16 h_vlan_TCI;
+	__be16 h_vlan_encapsulated_proto;
+};
+#endif
+
 /*
  * Parse Ethernet header
  *

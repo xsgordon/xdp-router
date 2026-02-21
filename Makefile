@@ -33,7 +33,7 @@ BPF_CFLAGS += -I$(SRC_DIR) -I$(COMMON_DIR) -I$(LIB_DIR) -I$(BUILD_DIR)
 BPF_CFLAGS += -I/usr/include/bpf
 
 # User-space flags
-USER_CFLAGS := $(CFLAGS) -I$(COMMON_DIR) -I$(LIB_DIR)
+USER_CFLAGS := $(CFLAGS) -I$(SRC_DIR) -I$(COMMON_DIR) -I$(LIB_DIR) -I$(BUILD_DIR)
 LDFLAGS := -lbpf -lelf -lnl-3 -lnl-route-3
 
 # Source files discovery

@@ -5,6 +5,25 @@
 #define __XDP_ROUTER_COMMON_H
 
 #include <linux/types.h>
+#include <linux/if_vlan.h>
+#include <bpf/bpf_endian.h>
+
+/* BPF doesn't have standard library, define constants we need */
+#ifndef UINT64_MAX
+#define UINT64_MAX ((__u64)-1)
+#endif
+
+#ifndef AF_INET
+#define AF_INET 2
+#endif
+
+#ifndef AF_INET6
+#define AF_INET6 10
+#endif
+
+#ifndef IPV6_FLOWINFO_MASK
+#define IPV6_FLOWINFO_MASK bpf_htonl(0x0FFFFFFF)
+#endif
 
 /* Project version */
 #define XDP_ROUTER_VERSION_MAJOR 0
