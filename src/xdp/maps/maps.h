@@ -56,12 +56,17 @@ static __always_inline void update_stats(__u32 ifindex, __u64 bytes, bool rx)
 	if (!stats)
 		return;
 
+	/*
+	 * PERCPU maps: each CPU has its own copy, no concurrent access.
+	 * Simple increments are correct and much faster than atomics.
+	 * User-space aggregates across CPUs when reading.
+	 */
 	if (rx) {
-		__sync_fetch_and_add(&stats->rx_packets, 1);
-		__sync_fetch_and_add(&stats->rx_bytes, bytes);
+		stats->rx_packets++;
+		stats->rx_bytes += bytes;
 	} else {
-		__sync_fetch_and_add(&stats->tx_packets, 1);
-		__sync_fetch_and_add(&stats->tx_bytes, bytes);
+		stats->tx_packets++;
+		stats->tx_bytes += bytes;
 	}
 }
 
@@ -72,15 +77,15 @@ static __always_inline void record_drop(__u32 ifindex, enum drop_reason reason)
 	__u32 key = reason;
 	struct if_stats *stats;
 
-	/* Update drop counter */
+	/* Update drop counter (PERCPU map, no atomics needed) */
 	count = bpf_map_lookup_elem(&drop_stats, &key);
 	if (count)
-		__sync_fetch_and_add(count, 1);
+		(*count)++;
 
-	/* Update interface drop counter */
+	/* Update interface drop counter (PERCPU map, no atomics needed) */
 	stats = bpf_map_lookup_elem(&packet_stats, &ifindex);
 	if (stats)
-		__sync_fetch_and_add(&stats->dropped, 1);
+		stats->dropped++;
 }
 
 /* Helper: Get runtime configuration */
