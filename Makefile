@@ -57,7 +57,7 @@ XDP_SKEL := $(BUILD_DIR)/xdp_router.skel.h
 DAEMON := $(BUILD_DIR)/xdp-routerd
 CLI := $(BUILD_DIR)/xdp-router-cli
 
-.PHONY: all clean install test help check-deps
+.PHONY: all clean install test help check-deps verify
 
 all: $(XDP_PROG) $(XDP_SKEL) $(DAEMON) $(CLI)
 
@@ -179,6 +179,28 @@ test-performance:
 	@echo "  TEST-PERFORMANCE"
 	@cd $(TESTS_DIR)/performance && make test
 
+# Verify BPF program passes kernel verifier
+verify: $(XDP_PROG)
+	@echo "  VERIFY   $(XDP_PROG)"
+	@if [ ! -f /sys/kernel/btf/vmlinux ]; then \
+		echo "WARNING: Kernel BTF not available, skipping verifier test"; \
+		exit 0; \
+	fi
+	@if command -v $(BPFTOOL) >/dev/null 2>&1; then \
+		$(BPFTOOL) prog load $(XDP_PROG) /sys/fs/bpf/xdp_router_test \
+			type xdp 2>&1 | tee /tmp/verifier.log; \
+		if [ -f /sys/fs/bpf/xdp_router_test ]; then \
+			rm -f /sys/fs/bpf/xdp_router_test; \
+			echo "✓ BPF verifier PASSED"; \
+		else \
+			echo "✗ BPF verifier FAILED"; \
+			echo "See /tmp/verifier.log for details"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "WARNING: bpftool not found, skipping verifier test"; \
+	fi
+
 # Format code
 format:
 	@echo "  FORMAT"
@@ -198,6 +220,7 @@ help:
 	@echo "Targets:"
 	@echo "  all              - Build all components (default)"
 	@echo "  check-deps       - Verify build dependencies are installed"
+	@echo "  verify           - Verify BPF program passes kernel verifier"
 	@echo "  clean            - Remove build artifacts"
 	@echo "  install          - Install to system"
 	@echo "  uninstall        - Remove from system"
