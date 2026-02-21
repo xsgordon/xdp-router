@@ -151,13 +151,6 @@ static __always_inline int handle_ipv6(struct xdp_md *ctx, struct parser_ctx *pc
 			struct if_stats *stats;
 			__u64 pkt_len;
 
-			/*
-			 * Paranoid check: kernel guarantees data_end >= data,
-			 * but defensive programming requires verification.
-			 */
-			if (pctx->data_end < pctx->data)
-				return XDP_ABORTED;
-
 			pkt_len = pctx->data_end - pctx->data;
 
 			/*

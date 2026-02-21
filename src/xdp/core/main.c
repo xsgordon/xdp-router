@@ -54,6 +54,14 @@ int xdp_router_main(struct xdp_md *ctx)
 	pctx.data_end = (void *)(long)ctx->data_end;
 
 	/*
+	 * Paranoid validation: verify kernel invariant data_end >= data.
+	 * Must be checked BEFORE any use of these pointers.
+	 * If this ever fails, it indicates a severe kernel bug.
+	 */
+	if (pctx.data_end < pctx.data)
+		return XDP_ABORTED;
+
+	/*
 	 * Validate ingress interface index.
 	 * We validate FIB-returned ifindex, so we should also validate
 	 * kernel-provided ingress ifindex for consistency.
