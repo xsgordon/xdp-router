@@ -30,15 +30,24 @@ int xdp_router_main(struct xdp_md *ctx)
 	int rc;
 
 	/*
-	 * Get runtime configuration and copy to stack.
+	 * Get runtime configuration and copy to stack atomically.
 	 * This prevents TOCTOU race conditions where config could be
-	 * modified by user-space between checks. Stack copy is atomic.
+	 * modified by user-space between checks.
+	 *
+	 * Use bpf_probe_read() instead of struct assignment to ensure
+	 * atomic copy. Simple assignment (*cfg) may be compiled into
+	 * multiple load instructions, creating a TOCTOU window.
 	 */
 	cfg = get_config();
-	if (cfg)
-		cfg_local = *cfg;
-	else
-		cfg_local.features = 0xFFFFFFFF;  /* All features enabled if no config */
+	if (cfg) {
+		if (bpf_probe_read(&cfg_local, sizeof(cfg_local), cfg) != 0) {
+			/* Read failed - use safe defaults */
+			cfg_local.features = FEATURE_IPV4_BIT;
+		}
+	} else {
+		/* No config: fail-closed with minimal features */
+		cfg_local.features = FEATURE_IPV4_BIT;
+	}
 
 	/* Initialize parser context */
 	pctx.data = (void *)(long)ctx->data;
