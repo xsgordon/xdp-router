@@ -45,7 +45,8 @@ jobs:
     - name: Build BPF program
       run: |
         make clean
-        make
+        # Build only BPF program and CLI (control plane requires libnl-3-dev)
+        make build/xdp_router.bpf.o build/xdp_router.skel.h build/xdp-router-cli
 
     - name: Build unit tests
       run: |

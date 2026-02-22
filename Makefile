@@ -34,7 +34,10 @@ BPF_CFLAGS += -I/usr/include/bpf
 
 # User-space flags
 USER_CFLAGS := $(CFLAGS) -I$(SRC_DIR) -I$(COMMON_DIR) -I$(LIB_DIR) -I$(BUILD_DIR)
-LDFLAGS := -lbpf -lelf -lnl-3 -lnl-route-3
+
+# Linker flags (separate for CLI and control plane)
+CLI_LDFLAGS := -lbpf -lelf
+DAEMON_LDFLAGS := -lbpf -lelf -lnl-3 -lnl-route-3
 
 # Source files discovery
 CONTROL_SOURCES := $(wildcard $(CONTROL_DIR)/*.c $(CONTROL_DIR)/**/*.c)
@@ -135,12 +138,12 @@ $(CLI_BUILD)/%.o: $(CLI_DIR)/%.c $(XDP_SKEL) | $(CLI_BUILD)
 # Control Plane Daemon
 $(DAEMON): $(CONTROL_OBJECTS)
 	@echo "  LD       $@"
-	@$(CC) $^ $(LDFLAGS) -o $@
+	@$(CC) $^ $(DAEMON_LDFLAGS) -o $@
 
 # CLI Tool
 $(CLI): $(CLI_OBJECTS)
 	@echo "  LD       $@"
-	@$(CC) $^ $(LDFLAGS) -o $@
+	@$(CC) $^ $(CLI_LDFLAGS) -o $@
 
 # Clean
 clean:
