@@ -17,18 +17,41 @@
 
 /*
  * Compatibility wrappers for XDP attach/detach
- * Works across different libbpf versions (Ubuntu 22.04 and Fedora 43+)
+ * Supports both old and new libbpf versions
+ *
+ * Strategy:
+ * - Try bpf_xdp_attach/detach first (libbpf 1.0+, cleaner API)
+ * - If compilation fails, use bpf_set_link_xdp_fd (libbpf 0.x, legacy)
  */
+
+/* Detect if new API is available by checking libbpf version */
+#if LIBBPF_MAJOR_VERSION >= 1
+	/* New API available (libbpf 1.0+) */
+	#define HAVE_BPF_XDP_ATTACH 1
+#else
+	#define HAVE_BPF_XDP_ATTACH 0
+#endif
+
 static int xdp_attach_wrapper(int ifindex, int prog_fd, __u32 flags)
 {
-	/* Use bpf_prog_attach which is available in all libbpf versions */
-	return bpf_prog_attach(prog_fd, ifindex, BPF_XDP, flags);
+#if HAVE_BPF_XDP_ATTACH
+	/* Use new API (libbpf 1.0+) */
+	return bpf_xdp_attach(ifindex, prog_fd, flags, NULL);
+#else
+	/* Use legacy API (libbpf 0.x) */
+	return bpf_set_link_xdp_fd(ifindex, prog_fd, flags);
+#endif
 }
 
 static int xdp_detach_wrapper(int ifindex)
 {
-	/* Use bpf_prog_detach which is available in all libbpf versions */
-	return bpf_prog_detach2(-1, ifindex, BPF_XDP);
+#if HAVE_BPF_XDP_ATTACH
+	/* Use new API (libbpf 1.0+) */
+	return bpf_xdp_detach(ifindex, 0, NULL);
+#else
+	/* Use legacy API - pass -1 to detach (libbpf 0.x) */
+	return bpf_set_link_xdp_fd(ifindex, -1, 0);
+#endif
 }
 
 static void print_usage(const char *prog)
