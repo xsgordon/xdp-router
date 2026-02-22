@@ -210,9 +210,10 @@ static int cmd_detach(int argc, char **argv)
 static int cmd_stats(int argc, char **argv)
 {
 	int stats_fd, i, err;
-	struct if_stats stats;
+	struct if_stats stats, *percpu_stats;
 	const char *ifname = NULL;
 	int target_ifindex = -1;
+	int nr_cpus;
 
 	/* Check for required privileges */
 	if (geteuid() != 0) {
@@ -246,6 +247,21 @@ static int cmd_stats(int argc, char **argv)
 		return -1;
 	}
 
+	/* Allocate buffer for PERCPU map values */
+	nr_cpus = libbpf_num_possible_cpus();
+	if (nr_cpus < 0) {
+		fprintf(stderr, "Error: failed to get number of CPUs: %s\n", strerror(-nr_cpus));
+		close(stats_fd);
+		return -1;
+	}
+
+	percpu_stats = calloc(nr_cpus, sizeof(struct if_stats));
+	if (!percpu_stats) {
+		fprintf(stderr, "Error: failed to allocate memory for PERCPU stats\n");
+		close(stats_fd);
+		return -1;
+	}
+
 	printf("\n");
 	printf("=== XDP Router Statistics ===\n");
 	printf("\n");
@@ -253,14 +269,27 @@ static int cmd_stats(int argc, char **argv)
 	/* Iterate through all interfaces */
 	for (i = 0; i < MAX_INTERFACES; i++) {
 		__u32 key = i;
+		int cpu;
 
 		/* Skip if filtering by interface */
 		if (target_ifindex >= 0 && i != target_ifindex)
 			continue;
 
-		err = bpf_map_lookup_elem(stats_fd, &key, &stats);
+		/* Lookup PERCPU values (one per CPU) */
+		err = bpf_map_lookup_elem(stats_fd, &key, percpu_stats);
 		if (err)
 			continue;
+
+		/* Sum stats across all CPUs */
+		memset(&stats, 0, sizeof(stats));
+		for (cpu = 0; cpu < nr_cpus; cpu++) {
+			stats.rx_packets += percpu_stats[cpu].rx_packets;
+			stats.rx_bytes   += percpu_stats[cpu].rx_bytes;
+			stats.tx_packets += percpu_stats[cpu].tx_packets;
+			stats.tx_bytes   += percpu_stats[cpu].tx_bytes;
+			stats.dropped    += percpu_stats[cpu].dropped;
+			stats.errors     += percpu_stats[cpu].errors;
+		}
 
 		/* Skip interfaces with no traffic */
 		if (stats.rx_packets == 0 && stats.tx_packets == 0 &&
@@ -288,6 +317,7 @@ static int cmd_stats(int argc, char **argv)
 		printf("\n");
 	}
 
+	free(percpu_stats);
 	close(stats_fd);
 	return 0;
 }
