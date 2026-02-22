@@ -2,6 +2,9 @@
 
 A high-performance, XDP-based routing engine for Linux that provides line-rate packet forwarding while maintaining full integration with the kernel's control plane.
 
+[!WARNING]
+This project is 100% vibes and functionally incomplete!
+
 ## Overview
 
 xdp-router is a hybrid routing solution that combines:
