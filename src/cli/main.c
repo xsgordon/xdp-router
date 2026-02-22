@@ -48,6 +48,13 @@ static int cmd_attach(int argc, char **argv)
 	int ifindex, err;
 	__u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 
+	/* Check for required privileges */
+	if (geteuid() != 0) {
+		fprintf(stderr, "Error: This command requires root privileges\n");
+		fprintf(stderr, "Please run with sudo: sudo xdp-router-cli attach <interface>\n");
+		return -1;
+	}
+
 	if (argc < 1) {
 		fprintf(stderr, "Error: interface name required\n");
 		fprintf(stderr, "Usage: xdp-router-cli attach <interface>\n");
@@ -116,6 +123,13 @@ static int cmd_detach(int argc, char **argv)
 {
 	int ifindex, err;
 
+	/* Check for required privileges */
+	if (geteuid() != 0) {
+		fprintf(stderr, "Error: This command requires root privileges\n");
+		fprintf(stderr, "Please run with sudo: sudo xdp-router-cli detach <interface>\n");
+		return -1;
+	}
+
 	if (argc < 1) {
 		fprintf(stderr, "Error: interface name required\n");
 		fprintf(stderr, "Usage: xdp-router-cli detach <interface>\n");
@@ -161,16 +175,26 @@ static int cmd_stats(int argc, char **argv)
 	const char *ifname = NULL;
 	int target_ifindex = -1;
 
+	/* Check for required privileges */
+	if (geteuid() != 0) {
+		fprintf(stderr, "Error: This command requires root privileges\n");
+		fprintf(stderr, "Please run with sudo: sudo xdp-router-cli stats [--interface <iface>]\n");
+		return -1;
+	}
+
 	/* Parse optional --interface argument */
 	for (i = 0; i < argc; i++) {
 		if (!strcmp(argv[i], "--interface") || !strcmp(argv[i], "-i")) {
-			if (i + 1 < argc) {
-				ifname = argv[i + 1];
-				target_ifindex = if_nametoindex(ifname);
-				if (!target_ifindex) {
-					fprintf(stderr, "Error: interface '%s' not found\n", ifname);
-					return -1;
-				}
+			if (i + 1 >= argc) {
+				fprintf(stderr, "Error: --interface requires an argument\n");
+				fprintf(stderr, "Usage: xdp-router-cli stats [--interface <name>]\n");
+				return -1;
+			}
+			ifname = argv[i + 1];
+			target_ifindex = if_nametoindex(ifname);
+			if (!target_ifindex) {
+				fprintf(stderr, "Error: interface '%s' not found\n", ifname);
+				return -1;
 			}
 		}
 	}
@@ -204,7 +228,7 @@ static int cmd_stats(int argc, char **argv)
 		    stats.dropped == 0 && stats.errors == 0)
 			continue;
 
-		char iface_name[IF_NAMESIZE];
+		char iface_name[IF_NAMESIZE] = {0};
 		if (!if_indextoname(i, iface_name))
 			snprintf(iface_name, sizeof(iface_name), "ifindex_%d", i);
 
@@ -215,6 +239,13 @@ static int cmd_stats(int argc, char **argv)
 		printf("  TX bytes:   %llu\n", (unsigned long long)stats.tx_bytes);
 		printf("  Dropped:    %llu\n", (unsigned long long)stats.dropped);
 		printf("  Errors:     %llu\n", (unsigned long long)stats.errors);
+
+		/* Check for counter saturation */
+		if (stats.rx_packets == UINT64_MAX || stats.rx_bytes == UINT64_MAX ||
+		    stats.tx_packets == UINT64_MAX || stats.tx_bytes == UINT64_MAX ||
+		    stats.dropped == UINT64_MAX || stats.errors == UINT64_MAX) {
+			printf("  ⚠️  WARNING: One or more counters have reached maximum value (saturated)\n");
+		}
 		printf("\n");
 	}
 
