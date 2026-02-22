@@ -15,6 +15,22 @@
 #include "common/common.h"
 #include "xdp_router.skel.h"
 
+/*
+ * Compatibility wrappers for XDP attach/detach
+ * Works across different libbpf versions (Ubuntu 22.04 and Fedora 43+)
+ */
+static int xdp_attach_wrapper(int ifindex, int prog_fd, __u32 flags)
+{
+	/* Use bpf_prog_attach which is available in all libbpf versions */
+	return bpf_prog_attach(prog_fd, ifindex, BPF_XDP, flags);
+}
+
+static int xdp_detach_wrapper(int ifindex)
+{
+	/* Use bpf_prog_detach which is available in all libbpf versions */
+	return bpf_prog_detach2(-1, ifindex, BPF_XDP);
+}
+
 static void print_usage(const char *prog)
 {
 	printf("Usage: %s <command> [options]\n\n", prog);
@@ -93,8 +109,8 @@ static int cmd_attach(int argc, char **argv)
 	}
 
 	/* Attach XDP program to interface */
-	err = bpf_xdp_attach(ifindex, bpf_program__fd(skel->progs.xdp_router_main),
-			     xdp_flags, NULL);
+	err = xdp_attach_wrapper(ifindex, bpf_program__fd(skel->progs.xdp_router_main),
+				 xdp_flags);
 	if (err) {
 		fprintf(stderr, "Error: failed to attach XDP program to %s: %s\n",
 			ifname, strerror(-err));
@@ -147,7 +163,7 @@ static int cmd_detach(int argc, char **argv)
 	}
 
 	/* Detach XDP program */
-	err = bpf_xdp_detach(ifindex, 0, NULL);
+	err = xdp_detach_wrapper(ifindex);
 	if (err) {
 		fprintf(stderr, "Error: failed to detach XDP program from %s: %s\n",
 			ifname, strerror(-err));
