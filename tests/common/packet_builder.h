@@ -20,11 +20,14 @@
 
 #define TEST_PACKET_MAX_SIZE 1500
 
-/* VLAN header structure */
+/* VLAN header structure (only define if not already defined) */
+#ifndef __struct_vlan_hdr_defined
+#define __struct_vlan_hdr_defined
 struct vlan_hdr {
 	uint16_t h_vlan_TCI;
 	uint16_t h_vlan_encapsulated_proto;
 } __attribute__((packed));
+#endif
 
 /* Test packet buffer */
 struct test_packet {
