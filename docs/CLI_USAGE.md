@@ -161,6 +161,42 @@ xdp-router-cli -h
 
 ---
 
+## Version Compatibility
+
+The XDP router uses a map versioning scheme to prevent mismatches between the CLI tool and the loaded BPF program.
+
+**Version Format:**
+- Format: `0xMMmmpppp` (Major, minor, patch in hexadecimal)
+- Example: Version 0.1.0 = `0x00010000`
+
+**How it works:**
+1. When attaching, the CLI initializes the config map with the current version
+2. When reading stats, the CLI checks if the map version matches the CLI version
+3. If versions mismatch, the CLI displays a helpful error message
+
+**Version Mismatch Example:**
+```bash
+$ sudo xdp-router-cli stats -i lo
+Error: BPF map version mismatch
+  CLI version:  0x00010000 (0.1.0)
+  Map version:  0x00020000 (0.2.0)
+
+This usually means:
+  - The XDP program was loaded by a different version of this CLI
+  - You need to detach and reattach the XDP program
+
+To fix:
+  sudo xdp-router-cli detach lo
+  sudo xdp-router-cli attach lo
+```
+
+**Why this matters:**
+- Phase 3 and beyond may change map structures
+- Using mismatched versions could cause crashes or incorrect behavior
+- Version checking prevents these issues with clear error messages
+
+---
+
 ## Common Workflows
 
 ### Basic Testing

@@ -163,12 +163,17 @@ From CODE_REVIEW_3.md:
 
 ### MEDIUM Level
 
-**ISSUE #4: No Map Versioning**
-- Location: src/xdp/maps/maps.h
+**ISSUE #4: No Map Versioning** - ✅ RESOLVED (2026-02-22)
+- Location: src/common/common.h, src/cli/main.c
 - Problem: No version field in maps
-- Fix: Add version to struct xdp_config
-- Effort: 2-3 hours
-- **Priority**: Needed before Phase 3
+- Fix: Added version to struct xdp_config (first field)
+- Implementation:
+  - Version macro: `XDP_ROUTER_MAP_VERSION` (format: 0xMMmmpppp)
+  - CLI initializes version on attach
+  - CLI checks version on stats command
+  - Helpful error message on version mismatch
+- Effort: 2 hours (completed)
+- **Status**: Implemented and tested
 
 ### Testing Gaps
 
@@ -345,7 +350,15 @@ Manual testing discovered **two critical bugs** that unit tests missed:
 
 ### Design Decisions Made
 
-1. **PERCPU Maps for Statistics**
+1. **Map Versioning Strategy**
+   - Format: `0xMMmmpppp` (Major, minor, patch in hexadecimal)
+   - Example: Version 0.1.0 = `0x00010000`
+   - Location: First field in struct xdp_config (for compatibility)
+   - Checked by: CLI on stats command (prevents version mismatch)
+   - Initialized: Userspace during attach (set to XDP_ROUTER_MAP_VERSION)
+   - Benefits: Prevents CLI/BPF version mismatches, helpful error messages
+
+2. **PERCPU Maps for Statistics**
    - Reason: Lock-free updates, scales with CPU count
    - Tradeoff: Userspace must aggregate
    - Correct implementation: calloc(nr_cpus, sizeof(struct))

@@ -30,6 +30,22 @@
 #define XDP_ROUTER_VERSION_MINOR 1
 #define XDP_ROUTER_VERSION_PATCH 0
 
+/*
+ * BPF Map API Version
+ *
+ * Format: 0xMMmmpppp (M=major, m=minor, p=patch)
+ * Example: 0.1.0 = 0x00010000
+ *
+ * MUST increment when:
+ * - Map key/value structure changes (MAJOR)
+ * - Map added/removed (MINOR)
+ * - Map semantics change (MINOR)
+ */
+#define XDP_ROUTER_MAP_VERSION \
+	((XDP_ROUTER_VERSION_MAJOR << 24) | \
+	 (XDP_ROUTER_VERSION_MINOR << 16) | \
+	 (XDP_ROUTER_VERSION_PATCH))
+
 /* Feature flags - compile time */
 #ifdef FEATURE_IPV4
 #define HAS_IPV4 1
@@ -81,12 +97,17 @@ enum drop_reason {
 	DROP_MAX,
 };
 
-/* Configuration structure */
+/*
+ * Configuration structure
+ *
+ * IMPORTANT: Version field must be first for compatibility checking.
+ * CLI tools MUST verify version matches before accessing other fields.
+ */
 struct xdp_config {
+	__u32 version;		/* Map API version (XDP_ROUTER_MAP_VERSION) */
 	__u32 features;		/* Feature bitmap */
 	__u32 log_level;	/* Debug verbosity */
 	__u32 max_srv6_sids;	/* SRv6 SID limit */
-	__u32 reserved;
 };
 
 /* Per-interface statistics */

@@ -81,6 +81,63 @@ static void print_version(void)
 	       XDP_ROUTER_VERSION_PATCH);
 }
 
+/*
+ * Check if the loaded BPF program's map version matches this CLI version
+ *
+ * Returns:
+ *   0 on success (version matches)
+ *  -1 on error or version mismatch
+ */
+static int check_map_version(void)
+{
+	int config_fd;
+	struct xdp_config cfg;
+	__u32 key = 0;
+	int err;
+
+	/* Try to open config map */
+	config_fd = bpf_obj_get("/sys/fs/bpf/xdp_router/config_map");
+	if (config_fd < 0) {
+		/* Map not found - likely no program attached */
+		return -1;
+	}
+
+	/* Read config from map */
+	err = bpf_map_lookup_elem(config_fd, &key, &cfg);
+	close(config_fd);
+
+	if (err) {
+		fprintf(stderr, "Warning: failed to read config map\n");
+		return -1;
+	}
+
+	/* Check version */
+	if (cfg.version != XDP_ROUTER_MAP_VERSION) {
+		fprintf(stderr, "Error: BPF map version mismatch\n");
+		fprintf(stderr, "  CLI version:  0x%08x (%d.%d.%d)\n",
+			XDP_ROUTER_MAP_VERSION,
+			XDP_ROUTER_VERSION_MAJOR,
+			XDP_ROUTER_VERSION_MINOR,
+			XDP_ROUTER_VERSION_PATCH);
+		fprintf(stderr, "  Map version:  0x%08x (%d.%d.%d)\n",
+			cfg.version,
+			(cfg.version >> 24) & 0xFF,
+			(cfg.version >> 16) & 0xFF,
+			cfg.version & 0xFFFF);
+		fprintf(stderr, "\n");
+		fprintf(stderr, "This usually means:\n");
+		fprintf(stderr, "  - The XDP program was loaded by a different version of this CLI\n");
+		fprintf(stderr, "  - You need to detach and reattach the XDP program\n");
+		fprintf(stderr, "\n");
+		fprintf(stderr, "To fix:\n");
+		fprintf(stderr, "  sudo xdp-router-cli detach <interface>\n");
+		fprintf(stderr, "  sudo xdp-router-cli attach <interface>\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int cmd_attach(int argc, char **argv)
 {
 	struct xdp_router_bpf *skel;
@@ -141,9 +198,32 @@ static int cmd_attach(int argc, char **argv)
 		goto cleanup;
 	}
 
+	/* Initialize config map with version and default settings */
+	{
+		struct xdp_config cfg = {
+			.version = XDP_ROUTER_MAP_VERSION,
+			.features = FEATURE_IPV4_BIT | FEATURE_IPV6_BIT,
+			.log_level = 0,
+			.max_srv6_sids = 0,
+		};
+		__u32 key = 0;
+		int config_fd = bpf_map__fd(skel->maps.config_map);
+
+		err = bpf_map_update_elem(config_fd, &key, &cfg, BPF_ANY);
+		if (err) {
+			fprintf(stderr, "Warning: failed to initialize config map: %s\n", strerror(-err));
+			fprintf(stderr, "Program may not function correctly.\n");
+		}
+	}
+
 	printf("Successfully attached XDP program to %s (ifindex %d)\n",
 	       ifname, ifindex);
 	printf("Mode: SKB (generic XDP)\n");
+	printf("Map version: 0x%08x (%d.%d.%d)\n",
+	       XDP_ROUTER_MAP_VERSION,
+	       XDP_ROUTER_VERSION_MAJOR,
+	       XDP_ROUTER_VERSION_MINOR,
+	       XDP_ROUTER_VERSION_PATCH);
 	printf("\n");
 	printf("Note: Program will remain attached even after this command exits.\n");
 	printf("Use 'xdp-router-cli detach %s' to remove it.\n", ifname);
@@ -219,6 +299,13 @@ static int cmd_stats(int argc, char **argv)
 	if (geteuid() != 0) {
 		fprintf(stderr, "Error: This command requires root privileges\n");
 		fprintf(stderr, "Please run with sudo: sudo xdp-router-cli stats [--interface <iface>]\n");
+		return -1;
+	}
+
+	/* Check map version compatibility */
+	err = check_map_version();
+	if (err) {
+		/* Error message already printed by check_map_version() */
 		return -1;
 	}
 
