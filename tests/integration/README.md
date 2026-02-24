@@ -154,6 +154,18 @@ Tests PERCPU statistics handling (prevents segfault regression):
 - ✅ Drop stats tracking
 - ✅ Config map versioning
 
+### test_attach_detach (7 tests)
+Tests XDP program lifecycle management (prevents XDP API misuse):
+- ✅ Attach XDP program to loopback interface
+- ✅ Detach XDP program from interface
+- ✅ Double attach error handling (UPDATE_IF_NOEXIST)
+- ✅ Invalid interface error handling
+- ✅ Safe detach when not attached
+- ✅ Map accessibility after attach
+- ✅ Full flow: attach -> process packet -> verify stats
+
+**Total: 28 integration tests**
+
 ## References
 
 - BPF skeleton documentation: https://www.kernel.org/doc/html/latest/bpf/

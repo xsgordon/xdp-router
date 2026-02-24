@@ -166,7 +166,7 @@ uninstall:
 	@rm -rf /usr/local/lib/xdp-router
 
 # Tests
-test:
+test: $(XDP_SKEL)
 	@echo "  TEST"
 	@cd $(TESTS_DIR) && make test
 
@@ -174,7 +174,7 @@ test-unit:
 	@echo "  TEST-UNIT"
 	@cd $(TESTS_DIR)/unit && make test
 
-test-integration:
+test-integration: $(XDP_SKEL)
 	@echo "  TEST-INTEGRATION"
 	@cd $(TESTS_DIR)/integration && make test
 
