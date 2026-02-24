@@ -207,8 +207,12 @@ static inline void teardown_bpf_test(struct bpf_test_ctx *ctx)
 static inline int run_xdp_test(struct bpf_test_ctx *ctx, void *data, __u32 data_len, __u32 *ret_val,
                                __u32 *duration)
 {
-	LIBBPF_OPTS(bpf_test_run_opts, opts, .data_in = data, .data_size_in = data_len,
-	            .repeat = 1, );
+	struct bpf_test_run_opts opts = {
+		.sz = sizeof(struct bpf_test_run_opts),
+		.data_in = data,
+		.data_size_in = data_len,
+		.repeat = 1,
+	};
 	int err;
 
 	err = bpf_prog_test_run_opts(ctx->prog_fd, &opts);
