@@ -116,13 +116,43 @@ Implement 15+ handler tests covering:
 
 ## Running Tests
 
-```bash
-# Once implemented:
-sudo make test-integration
+Integration tests require root privileges or CAP_BPF capability to load BPF programs.
 
-# Or individually:
-sudo ./tests/integration/test_handlers
+```bash
+# Build tests (no root required)
+cd tests/integration
+make
+
+# Run all tests (requires root)
+sudo make test
+
+# Run individual test suites
+sudo ./test_packet_injection
+sudo ./test_stats
 ```
+
+**Note:** Tests use `bpf_prog_test_run()` which allows testing BPF programs without
+attaching to network interfaces. This means tests don't affect live network traffic.
+
+## Current Test Suites
+
+### test_packet_injection (14 tests)
+Tests XDP packet processing using injected test packets:
+- ✅ BPF program loading
+- ✅ Edge cases (empty packets, truncated headers)
+- ✅ IPv4 packet handling (valid, TTL=0, TTL=1, fragments)
+- ✅ IPv6 packet handling (valid, hop_limit=0, hop_limit=1)
+- ✅ Protocol pass-through (ARP, multicast, broadcast)
+
+### test_stats (7 tests)
+Tests PERCPU statistics handling (prevents segfault regression):
+- ✅ PERCPU map reads without segfault
+- ✅ Stats aggregation across CPUs
+- ✅ Packet counter accuracy
+- ✅ Byte counter accuracy
+- ✅ Per-interface independence
+- ✅ Drop stats tracking
+- ✅ Config map versioning
 
 ## References
 
