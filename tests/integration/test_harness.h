@@ -4,18 +4,20 @@
 #ifndef __INTEGRATION_TEST_HARNESS_H
 #define __INTEGRATION_TEST_HARNESS_H
 
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include "common/common.h"
-
-#include "xdp_router.skel.h"
-
+/* clang-format off */
+/* Include order matters: libbpf headers must come before skeleton */
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
+
+#include "common/common.h"
+#include "xdp_router.skel.h"
+/* clang-format on */
 
 /* ANSI color codes for test output */
 #define COLOR_RESET  "\033[0m"

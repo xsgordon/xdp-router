@@ -11,16 +11,17 @@
  * Note: These tests require root privileges or CAP_NET_ADMIN + CAP_BPF.
  */
 
+/* clang-format off */
+#include <arpa/inet.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <linux/ip.h>
-
-#include "../common/packet_builder.h"
-#include "test_harness.h"
-
-#include <arpa/inet.h>
 #include <net/if.h>
+
+#include "test_harness.h"
+#include "../common/packet_builder.h"
+/* clang-format on */
 
 /* XDP action return codes */
 #ifndef XDP_ABORTED

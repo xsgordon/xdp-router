@@ -8,11 +8,13 @@
  * would have caught the segfault bug found during manual testing.
  */
 
+/* clang-format off */
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 
-#include "../common/packet_builder.h"
 #include "test_harness.h"
+#include "../common/packet_builder.h"
+/* clang-format on */
 
 static int tests_run = 0;
 static int tests_passed = 0;
