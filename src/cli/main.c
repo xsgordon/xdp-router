@@ -138,6 +138,80 @@ static int check_map_version(void)
 	return 0;
 }
 
+/*
+ * Aggregate PERCPU statistics for a single interface
+ *
+ * Reads per-CPU statistics from a PERCPU map and aggregates them into
+ * a single struct. Handles the buffer allocation and summation logic.
+ *
+ * @param stats_fd     File descriptor of the packet_stats PERCPU map
+ * @param ifindex      Interface index to read stats for
+ * @param percpu_buf   Pre-allocated buffer for PERCPU values (nr_cpus * sizeof(struct if_stats))
+ * @param nr_cpus      Number of possible CPUs
+ * @param out          Output parameter for aggregated stats
+ * @return 0 on success, -1 if interface has no stats
+ */
+static int aggregate_percpu_stats(int stats_fd, __u32 ifindex,
+				   struct if_stats *percpu_buf,
+				   int nr_cpus,
+				   struct if_stats *out)
+{
+	int cpu, err;
+
+	/* Lookup PERCPU values (one per CPU) */
+	err = bpf_map_lookup_elem(stats_fd, &ifindex, percpu_buf);
+	if (err)
+		return -1;
+
+	/* Sum stats across all CPUs */
+	memset(out, 0, sizeof(*out));
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
+		out->rx_packets += percpu_buf[cpu].rx_packets;
+		out->rx_bytes   += percpu_buf[cpu].rx_bytes;
+		out->tx_packets += percpu_buf[cpu].tx_packets;
+		out->tx_bytes   += percpu_buf[cpu].tx_bytes;
+		out->dropped    += percpu_buf[cpu].dropped;
+		out->errors     += percpu_buf[cpu].errors;
+	}
+
+	return 0;
+}
+
+/*
+ * Print statistics for a single interface
+ *
+ * Displays packet statistics in a human-readable format. Includes
+ * warning for saturated counters (reached UINT64_MAX).
+ *
+ * @param ifindex   Interface index
+ * @param stats     Aggregated statistics to display
+ */
+static void print_interface_stats(__u32 ifindex, const struct if_stats *stats)
+{
+	char iface_name[IF_NAMESIZE] = {0};
+
+	/* Get interface name (or use ifindex_N if lookup fails) */
+	if (!if_indextoname(ifindex, iface_name))
+		snprintf(iface_name, sizeof(iface_name), "ifindex_%d", ifindex);
+
+	/* Print statistics */
+	printf("Interface: %s (ifindex %d)\n", iface_name, ifindex);
+	printf("  RX packets: %llu\n", (unsigned long long)stats->rx_packets);
+	printf("  RX bytes:   %llu\n", (unsigned long long)stats->rx_bytes);
+	printf("  TX packets: %llu\n", (unsigned long long)stats->tx_packets);
+	printf("  TX bytes:   %llu\n", (unsigned long long)stats->tx_bytes);
+	printf("  Dropped:    %llu\n", (unsigned long long)stats->dropped);
+	printf("  Errors:     %llu\n", (unsigned long long)stats->errors);
+
+	/* Check for counter saturation */
+	if (stats->rx_packets == UINT64_MAX || stats->rx_bytes == UINT64_MAX ||
+	    stats->tx_packets == UINT64_MAX || stats->tx_bytes == UINT64_MAX ||
+	    stats->dropped == UINT64_MAX || stats->errors == UINT64_MAX) {
+		printf("  ⚠️  WARNING: One or more counters have reached maximum value (saturated)\n");
+	}
+	printf("\n");
+}
+
 static int cmd_attach(int argc, char **argv)
 {
 	struct xdp_router_bpf *skel;
@@ -355,53 +429,22 @@ static int cmd_stats(int argc, char **argv)
 
 	/* Iterate through all interfaces */
 	for (i = 0; i < MAX_INTERFACES; i++) {
-		__u32 key = i;
-		int cpu;
-
 		/* Skip if filtering by interface */
 		if (target_ifindex >= 0 && i != target_ifindex)
 			continue;
 
-		/* Lookup PERCPU values (one per CPU) */
-		err = bpf_map_lookup_elem(stats_fd, &key, percpu_stats);
+		/* Aggregate PERCPU stats for this interface */
+		err = aggregate_percpu_stats(stats_fd, i, percpu_stats, nr_cpus, &stats);
 		if (err)
-			continue;
-
-		/* Sum stats across all CPUs */
-		memset(&stats, 0, sizeof(stats));
-		for (cpu = 0; cpu < nr_cpus; cpu++) {
-			stats.rx_packets += percpu_stats[cpu].rx_packets;
-			stats.rx_bytes   += percpu_stats[cpu].rx_bytes;
-			stats.tx_packets += percpu_stats[cpu].tx_packets;
-			stats.tx_bytes   += percpu_stats[cpu].tx_bytes;
-			stats.dropped    += percpu_stats[cpu].dropped;
-			stats.errors     += percpu_stats[cpu].errors;
-		}
+			continue;  /* Interface has no stats */
 
 		/* Skip interfaces with no traffic */
 		if (stats.rx_packets == 0 && stats.tx_packets == 0 &&
 		    stats.dropped == 0 && stats.errors == 0)
 			continue;
 
-		char iface_name[IF_NAMESIZE] = {0};
-		if (!if_indextoname(i, iface_name))
-			snprintf(iface_name, sizeof(iface_name), "ifindex_%d", i);
-
-		printf("Interface: %s (ifindex %d)\n", iface_name, i);
-		printf("  RX packets: %llu\n", (unsigned long long)stats.rx_packets);
-		printf("  RX bytes:   %llu\n", (unsigned long long)stats.rx_bytes);
-		printf("  TX packets: %llu\n", (unsigned long long)stats.tx_packets);
-		printf("  TX bytes:   %llu\n", (unsigned long long)stats.tx_bytes);
-		printf("  Dropped:    %llu\n", (unsigned long long)stats.dropped);
-		printf("  Errors:     %llu\n", (unsigned long long)stats.errors);
-
-		/* Check for counter saturation */
-		if (stats.rx_packets == UINT64_MAX || stats.rx_bytes == UINT64_MAX ||
-		    stats.tx_packets == UINT64_MAX || stats.tx_bytes == UINT64_MAX ||
-		    stats.dropped == UINT64_MAX || stats.errors == UINT64_MAX) {
-			printf("  ⚠️  WARNING: One or more counters have reached maximum value (saturated)\n");
-		}
-		printf("\n");
+		/* Print statistics for this interface */
+		print_interface_stats(i, &stats);
 	}
 
 	free(percpu_stats);

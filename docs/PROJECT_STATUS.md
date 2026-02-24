@@ -143,16 +143,24 @@ From CODE_REVIEW_3.md:
 
 ### LOW Level
 
-**ISSUE #3: cmd_stats() Could Be Refactored**
-- Location: src/cli/main.c:210-323 (113 lines)
-- Problem: Combines multiple responsibilities
-- Fix: Extract helper functions
+**ISSUE #3: cmd_stats() Could Be Refactored** - ✅ RESOLVED (2026-02-23)
+- Location: src/cli/main.c
+- Problem: Combines multiple responsibilities (113 lines)
+- Fix: Extracted helper functions
   ```c
-  static void print_interface_stats(...);
-  static int aggregate_percpu_stats(...);
+  static void print_interface_stats(__u32 ifindex, const struct if_stats *stats);
+  static int aggregate_percpu_stats(int stats_fd, __u32 ifindex,
+                                     struct if_stats *percpu_buf,
+                                     int nr_cpus, struct if_stats *out);
   ```
-- Effort: 1-2 hours
-- Impact: Better testability
+- Implementation:
+  - Main loop reduced from ~50 lines to 17 lines
+  - PERCPU aggregation logic now testable in isolation
+  - Display formatting separated from business logic
+  - Improved readability and maintainability
+- Effort: 1 hour (as estimated)
+- **Status**: Implemented and tested
+- GitHub: Closes #2
 
 **ISSUE #5: No Skeleton Version Check**
 - Location: src/cli/main.c
