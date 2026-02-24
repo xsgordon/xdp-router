@@ -11,8 +11,8 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 
-#include "test_harness.h"
 #include "../common/packet_builder.h"
+#include "test_harness.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -233,8 +233,8 @@ static int test_config_version(void)
 
 	/* Verify version */
 	ASSERT_EQ(cfg.version, XDP_ROUTER_MAP_VERSION,
-		  "Config version should match (expected 0x%08x, got 0x%08x)",
-		  XDP_ROUTER_MAP_VERSION, cfg.version);
+	          "Config version should match (expected 0x%08x, got 0x%08x)",
+	          XDP_ROUTER_MAP_VERSION, cfg.version);
 
 	/* Verify features */
 	ASSERT(cfg.features & FEATURE_IPV4_BIT, "IPv4 should be enabled");

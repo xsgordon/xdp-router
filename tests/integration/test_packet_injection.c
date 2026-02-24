@@ -8,14 +8,15 @@
  * without requiring attachment to a real network interface.
  */
 
-#include <arpa/inet.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
-#include "test_harness.h"
 #include "../common/packet_builder.h"
+#include "test_harness.h"
+
+#include <arpa/inet.h>
 
 /* XDP action return codes */
 #ifndef XDP_ABORTED
@@ -45,14 +46,10 @@ static uint8_t mcast_mac[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x01};
 static uint8_t bcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 /* Helper IPv6 addresses */
-static uint8_t ipv6_src[16] = {
-	0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-};
-static uint8_t ipv6_dst[16] = {
-	0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
-};
+static uint8_t ipv6_src[16] = {0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+static uint8_t ipv6_dst[16] = {0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
 
 /*
  * Test: BPF program loads successfully
@@ -116,7 +113,7 @@ static int test_truncated_ethernet(void)
 {
 	struct bpf_test_ctx ctx;
 	__u32 ret_val, duration;
-	unsigned char pkt[10] = {0};  /* Less than sizeof(struct ethhdr) = 14 */
+	unsigned char pkt[10] = {0}; /* Less than sizeof(struct ethhdr) = 14 */
 	int err;
 
 	if (geteuid() != 0) {
@@ -154,8 +151,8 @@ static int test_ipv4_valid(void)
 	/* Build a valid IPv4 packet */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, dst_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("192.168.1.2"), IPPROTO_ICMP, 64);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("192.168.1.2"), IPPROTO_ICMP,
+	                  64);
 
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Test run should succeed");
@@ -189,8 +186,8 @@ static int test_ipv4_ttl_zero(void)
 	/* Build IPv4 packet with TTL=0 */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, dst_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("192.168.1.2"), IPPROTO_ICMP, 0);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("192.168.1.2"), IPPROTO_ICMP,
+	                  0);
 
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Test run should succeed");
@@ -220,8 +217,8 @@ static int test_ipv4_ttl_one(void)
 	/* Build IPv4 packet with TTL=1 */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, dst_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("192.168.1.2"), IPPROTO_ICMP, 1);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("192.168.1.2"), IPPROTO_ICMP,
+	                  1);
 
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Test run should succeed");
@@ -251,8 +248,8 @@ static int test_ipv4_fragment(void)
 	/* Build fragmented IPv4 packet */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, dst_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("192.168.1.2"), IPPROTO_ICMP, 64);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("192.168.1.2"), IPPROTO_ICMP,
+	                  64);
 
 	/* Set MF (More Fragments) flag */
 	packet_set_ipv4_frag(&pkt, 0, 1, 0);
@@ -411,8 +408,7 @@ static int test_multicast_pass(void)
 	/* Build multicast packet */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, mcast_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("224.0.0.1"), IPPROTO_ICMP, 64);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("224.0.0.1"), IPPROTO_ICMP, 64);
 
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Test run should succeed");
@@ -442,8 +438,8 @@ static int test_broadcast_pass(void)
 	/* Build broadcast packet */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, bcast_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("192.168.1.255"), IPPROTO_ICMP, 64);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("192.168.1.255"), IPPROTO_ICMP,
+	                  64);
 
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Test run should succeed");

@@ -11,15 +11,16 @@
  * Note: These tests require root privileges or CAP_NET_ADMIN + CAP_BPF.
  */
 
-#include <arpa/inet.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <linux/ip.h>
-#include <net/if.h>
 
-#include "test_harness.h"
 #include "../common/packet_builder.h"
+#include "test_harness.h"
+
+#include <arpa/inet.h>
+#include <net/if.h>
 
 /* XDP action return codes */
 #ifndef XDP_ABORTED
@@ -173,7 +174,7 @@ static int test_attach_invalid_interface(void)
 	struct bpf_test_ctx ctx;
 	int err;
 	__u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST | XDP_FLAGS_SKB_MODE;
-	int invalid_ifindex = 99999;  /* Very unlikely to exist */
+	int invalid_ifindex = 99999; /* Very unlikely to exist */
 
 	if (geteuid() != 0) {
 		TEST_SKIP("Requires root privileges");
@@ -283,16 +284,16 @@ static int test_attach_and_process_packet(void)
 	/* Process a packet via bpf_prog_test_run */
 	packet_init(&pkt);
 	packet_build_eth(&pkt, dst_mac, src_mac, htons(ETH_P_IP));
-	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"),
-			  inet_addr("192.168.1.2"), IPPROTO_ICMP, 64);
+	packet_build_ipv4(&pkt, inet_addr("192.168.1.1"), inet_addr("192.168.1.2"), IPPROTO_ICMP,
+	                  64);
 
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Packet processing should succeed");
 
 	/* Verify packet was processed with a valid XDP action */
 	/* XDP_ABORTED=0, XDP_DROP=1, XDP_PASS=2, XDP_TX=3, XDP_REDIRECT=4 */
-	ASSERT(ret_val <= XDP_REDIRECT,
-	       "Should return valid XDP action (got %u, expected 0-4)", ret_val);
+	ASSERT(ret_val <= XDP_REDIRECT, "Should return valid XDP action (got %u, expected 0-4)",
+	       ret_val);
 
 	/* Cleanup */
 	xdp_detach_wrapper(ifindex);
