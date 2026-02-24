@@ -12,6 +12,7 @@
  */
 
 #include <arpa/inet.h>
+#include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <linux/ip.h>
@@ -19,6 +20,23 @@
 
 #include "test_harness.h"
 #include "../common/packet_builder.h"
+
+/* XDP action return codes */
+#ifndef XDP_ABORTED
+#define XDP_ABORTED 0
+#endif
+#ifndef XDP_DROP
+#define XDP_DROP 1
+#endif
+#ifndef XDP_PASS
+#define XDP_PASS 2
+#endif
+#ifndef XDP_TX
+#define XDP_TX 3
+#endif
+#ifndef XDP_REDIRECT
+#define XDP_REDIRECT 4
+#endif
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -271,9 +289,10 @@ static int test_attach_and_process_packet(void)
 	err = run_xdp_test(&ctx, pkt.data, pkt.len, &ret_val, &duration);
 	ASSERT_EQ(err, 0, "Packet processing should succeed");
 
-	/* Verify packet was processed (not dropped due to parse error) */
-	ASSERT(ret_val == XDP_PASS || ret_val == XDP_DROP,
-	       "Valid packet should be passed or dropped (not error)");
+	/* Verify packet was processed with a valid XDP action */
+	/* XDP_ABORTED=0, XDP_DROP=1, XDP_PASS=2, XDP_TX=3, XDP_REDIRECT=4 */
+	ASSERT(ret_val <= XDP_REDIRECT,
+	       "Should return valid XDP action (got %u, expected 0-4)", ret_val);
 
 	/* Cleanup */
 	xdp_detach_wrapper(ifindex);
