@@ -30,6 +30,10 @@ static int test_percpu_read_no_segfault(void)
 	struct if_stats stats;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -55,6 +59,10 @@ static int test_percpu_aggregation(void)
 	uint8_t src_mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
 	uint8_t dst_mac[6] = {0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb};
 	int err, i;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
@@ -102,6 +110,10 @@ static int test_stats_accuracy(void)
 	int err, i;
 	const int num_packets = 100;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -146,6 +158,10 @@ static int test_stats_bytes(void)
 	uint8_t dst_mac[6] = {0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb};
 	int err, i;
 	const int num_packets = 10;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
@@ -192,6 +208,10 @@ static int test_stats_per_interface(void)
 	struct if_stats stats_if0, stats_if1;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -216,6 +236,10 @@ static int test_drop_stats(void)
 	__u64 drop_count_before, drop_count_after;
 	__u32 ret_val, duration;
 	int err, i;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
@@ -254,6 +278,10 @@ static int test_config_version(void)
 	struct xdp_config cfg;
 	__u32 key = 0;
 	int err;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");

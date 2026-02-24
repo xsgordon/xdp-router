@@ -44,6 +44,10 @@ static int test_bpf_load(void)
 	struct bpf_test_ctx ctx;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load successfully");
 
@@ -66,6 +70,10 @@ static int test_empty_packet(void)
 	unsigned char pkt[1] = {0};
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -87,6 +95,10 @@ static int test_truncated_ethernet(void)
 	unsigned char pkt[10] = {0};  /* Less than sizeof(struct ethhdr) = 14 */
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -107,6 +119,10 @@ static int test_ipv4_valid(void)
 	__u32 ret_val, duration;
 	struct test_packet pkt;
 	int err;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
@@ -138,6 +154,10 @@ static int test_ipv4_ttl_zero(void)
 	struct test_packet pkt;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -165,6 +185,10 @@ static int test_ipv4_ttl_one(void)
 	struct test_packet pkt;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -191,6 +215,10 @@ static int test_ipv4_fragment(void)
 	__u32 ret_val, duration;
 	struct test_packet pkt;
 	int err;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
@@ -222,6 +250,10 @@ static int test_ipv6_valid(void)
 	struct test_packet pkt;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -251,6 +283,10 @@ static int test_ipv6_hop_limit_zero(void)
 	struct test_packet pkt;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -277,6 +313,10 @@ static int test_ipv6_hop_limit_one(void)
 	struct test_packet pkt;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -302,6 +342,10 @@ static int test_arp_pass(void)
 	__u32 ret_val, duration;
 	struct test_packet pkt;
 	int err;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
@@ -331,6 +375,10 @@ static int test_multicast_pass(void)
 	struct test_packet pkt;
 	int err;
 
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
+
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
 
@@ -357,6 +405,10 @@ static int test_broadcast_pass(void)
 	__u32 ret_val, duration;
 	struct test_packet pkt;
 	int err;
+
+	if (geteuid() != 0) {
+		TEST_SKIP("Requires root privileges");
+	}
 
 	err = setup_bpf_test(&ctx);
 	ASSERT_EQ(err, 0, "BPF program should load");
